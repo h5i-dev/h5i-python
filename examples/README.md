@@ -23,9 +23,9 @@ Then run any example as a plain Python script. Three take the task as an
 optional CLI argument (falling back to a demo task):
 
 ```bash
-python examples/ensemble_score.py    "implement \`h5i pull\` mirroring \`h5i push\`"
-python examples/arena_score.py       "make \`h5i doctor\` exit non-zero on repair failures"
-python examples/review_escalation.py "fix the flaky msg_integration test"
+python examples/ensemble_score.py    "implement quicksort"
+python examples/arena_score.py       "implement quicksort"
+python examples/review_escalation.py "implement quicksort"
 ```
 
 The rest are self-contained — the task is written into the score:
