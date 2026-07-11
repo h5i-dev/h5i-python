@@ -17,11 +17,15 @@ from h5i.orchestra import Conductor
 
 async def main(task: str) -> None:
     async with Conductor(".", "ensemble-demo", launcher="resident") as c:
-        claude = await c.hire("claude", runtime="claude")
-        codex = await c.hire("codex", runtime="codex")
+        claude = await c.hire(
+            "claude", runtime="claude", model="claude-haiku-4-5"
+        )
+        codex = await c.hire("codex", runtime="codex", model="gpt-5.4-mini")
 
         # Fail the predictable ways now, not at minute 30.
-        await c.preflight(live=[claude, codex], clean_worktree=True)
+        # LaunchResident starts each session on its first turn, so there is no
+        # live session to check yet.  Still fail fast on repository hygiene.
+        await c.preflight(clean_worktree=True)
 
         # Independent attempts, in parallel — then seal the round.
         a, b = await asyncio.gather(

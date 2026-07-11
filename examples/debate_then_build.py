@@ -20,9 +20,11 @@ QUESTION = (
 
 async def main() -> None:
     async with Conductor(".", "debate-demo", launcher="resident") as c:
-        pro = await c.hire("pro", runtime="claude")
-        con = await c.hire("con", runtime="codex")
-        moderator = await c.hire("moderator", runtime="claude")
+        pro = await c.hire("pro", runtime="claude", model="claude-haiku-4-5")
+        con = await c.hire("con", runtime="codex", model="gpt-5.4-mini")
+        moderator = await c.hire(
+            "moderator", runtime="claude", model="claude-haiku-4-5"
+        )
 
         outcome = await patterns.debate(
             c, QUESTION, [pro, con], moderator=moderator, rounds=2

@@ -12,8 +12,15 @@ from h5i.orchestra import Conductor, Verdict, patterns
 
 async def main() -> None:
     async with Conductor(".", "triage-and-fix") as c:
-        lead = await c.hire("lead", runtime="claude")
-        crew = [await c.hire(f"fixer{i}", runtime="claude") for i in range(2)]
+        lead = await c.hire(
+            "lead", runtime="claude", model="claude-haiku-4-5"
+        )
+        crew = [
+            await c.hire(
+                f"fixer{i}", runtime="claude", model="claude-haiku-4-5"
+            )
+            for i in range(2)
+        ]
 
         # A data turn: the agent replies with JSON, not code. The reply is
         # journaled — on resume this list comes back without re-asking.

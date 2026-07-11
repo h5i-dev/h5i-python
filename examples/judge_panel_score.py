@@ -26,12 +26,12 @@ RUBRIC = (
 async def main() -> None:
     async with Conductor(".", "panel-demo", launcher="resident") as c:
         workers = await asyncio.gather(
-            c.hire("claude", runtime="claude"),
-            c.hire("codex", runtime="codex"),
+            c.hire("claude", runtime="claude", model="claude-haiku-4-5"),
+            c.hire("codex", runtime="codex", model="gpt-5.4-mini"),
         )
         judges = await asyncio.gather(
-            c.hire("judge-a", runtime="claude"),
-            c.hire("judge-b", runtime="claude", model="claude-opus-4-8"),
+            c.hire("judge-a", runtime="claude", model="claude-haiku-4-5"),
+            c.hire("judge-b", runtime="claude", model="claude-haiku-4-5"),
         )
 
         # Independent attempts → seal → neutral evidence for the panel.

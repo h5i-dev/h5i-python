@@ -18,9 +18,13 @@ FEATURE = "add `--json` output to `h5i vibe`"
 
 async def main() -> None:
     async with Conductor(".", "pipeline-demo", launcher="resident") as c:
-        architect = await c.hire("architect", runtime="claude")
-        builder = await c.hire("builder", runtime="codex")
-        hardener = await c.hire("hardener", runtime="claude")
+        architect = await c.hire(
+            "architect", runtime="claude", model="claude-haiku-4-5"
+        )
+        builder = await c.hire("builder", runtime="codex", model="gpt-5.4-mini")
+        hardener = await c.hire(
+            "hardener", runtime="claude", model="claude-haiku-4-5"
+        )
 
         design, impl, hardened = await patterns.pipeline(
             c,

@@ -16,16 +16,22 @@ You need four things:
    most also hire `runtime="codex"`. Both CLIs must be installed and logged in.
    `launcher="resident"` additionally needs `tmux` (it spawns the sessions).
 4. **A repo to work on** — each score opens `Conductor(".", …)`, so run it from
-   the repository the agents should modify, with a **clean worktree** (most
-   scores `preflight(clean_worktree=True)` and fail fast otherwise).
+   the repository the agents should modify, with a **clean worktree** (the
+   arena and ensemble scores call `preflight(clean_worktree=True)` and fail
+   fast otherwise).
+
+`preflight(live=...)` is intended for the default `"attach"` launcher, where
+sessions must already be parked on their inboxes. Do not use that check before
+the first turn with `launcher="resident"`: resident sessions are started lazily
+when a turn is dispatched.
 
 Then run any example as a plain Python script. Three take the task as an
 optional CLI argument (falling back to a demo task):
 
 ```bash
-python examples/ensemble_score.py    "implement \`h5i pull\` mirroring \`h5i push\`"
-python examples/arena_score.py       "make \`h5i doctor\` exit non-zero on repair failures"
-python examples/review_escalation.py "fix the flaky msg_integration test"
+python examples/ensemble_score.py    "implement quicksort"
+python examples/arena_score.py       "implement quicksort"
+python examples/review_escalation.py "implement quicksort"
 ```
 
 The rest are self-contained — the task is written into the score:
@@ -39,15 +45,17 @@ python examples/custom_control_flow.py   # uses the default "attach" launcher:
                                          # park resident sessions yourself first
 ```
 
-Model coverage varies: `arena_score.py` and `review_escalation.py` hire
-`claude-haiku-4-5`, and `judge_panel_score.py`, `review_escalation.py`, and
-`tournament.py` hire `claude-opus-4-8` — edit the `model=` arguments if your
-account lacks a model. To resume an interrupted run, just re-run the same
-command — each script fixes its run id (`"arena-demo"`, `"pipeline-demo"`, …)
-and the journal replays completed steps. Scores that end in an `apply` pause
-at a durable human gate: the question is delivered over `h5i msg`, so answer
-it from the inbox (`h5i msg inbox`, then `h5i msg ack <n>` / `h5i msg reply
-<n> …`) before the winner touches your worktree.
+Every example pins inexpensive models instead of inheriting a potentially
+costly CLI default: Claude seats use `claude-haiku-4-5` and Codex seats use
+`gpt-5.4-mini`. Edit the `model=` arguments if your account lacks either model.
+Changing a model on an existing run does not rewrite a journaled hire, so also
+change the run id (for example, `"ensemble-demo-v2"`) when experimenting with
+another model. To resume an interrupted run without configuration changes,
+just re-run the same command — each script fixes its run id (`"arena-demo"`,
+`"pipeline-demo"`, …) and the journal replays completed steps. Scores that end
+in an `apply` pause at a durable human gate: the question is delivered over
+`h5i msg`, so answer it from the inbox (`h5i msg inbox`, then `h5i msg ack <n>`
+/ `h5i msg reply <n> …`) before the winner touches your worktree.
 
 ## One pattern each
 
