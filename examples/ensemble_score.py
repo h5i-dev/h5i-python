@@ -21,7 +21,9 @@ async def main(task: str) -> None:
         codex = await c.hire("codex", runtime="codex")
 
         # Fail the predictable ways now, not at minute 30.
-        await c.preflight(live=[claude, codex], clean_worktree=True)
+        # LaunchResident starts each session on its first turn, so there is no
+        # live session to check yet.  Still fail fast on repository hygiene.
+        await c.preflight(clean_worktree=True)
 
         # Independent attempts, in parallel — then seal the round.
         a, b = await asyncio.gather(

@@ -23,7 +23,9 @@ async def main(task: str) -> None:
             c.hire("codex", runtime="codex"),
             c.hire("haiku", runtime="claude", model="claude-haiku-4-5"),
         )
-        await c.preflight(live=agents, clean_worktree=True)
+        # LaunchResident starts each session on its first turn, so there is no
+        # live session to check yet.  Still fail fast on repository hygiene.
+        await c.preflight(clean_worktree=True)
 
         outcome = await patterns.arena(
             c,

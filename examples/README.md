@@ -16,8 +16,14 @@ You need four things:
    most also hire `runtime="codex"`. Both CLIs must be installed and logged in.
    `launcher="resident"` additionally needs `tmux` (it spawns the sessions).
 4. **A repo to work on** — each score opens `Conductor(".", …)`, so run it from
-   the repository the agents should modify, with a **clean worktree** (most
-   scores `preflight(clean_worktree=True)` and fail fast otherwise).
+   the repository the agents should modify, with a **clean worktree** (the
+   arena and ensemble scores call `preflight(clean_worktree=True)` and fail
+   fast otherwise).
+
+`preflight(live=...)` is intended for the default `"attach"` launcher, where
+sessions must already be parked on their inboxes. Do not use that check before
+the first turn with `launcher="resident"`: resident sessions are started lazily
+when a turn is dispatched.
 
 Then run any example as a plain Python script. Three take the task as an
 optional CLI argument (falling back to a demo task):
