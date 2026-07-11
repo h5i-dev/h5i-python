@@ -88,7 +88,12 @@ jobs:
         env:
           # The CLI is all the integration suite needs; skip web asset builds.
           H5I_SKIP_WEB_BUILD: "1"
-        run: cargo build --locked
+        run: |
+          # rust-embed needs web/dist/ to exist even when the frontend build
+          # is skipped. Newer engine refs stub it themselves (h5i-core
+          # build.rs); this keeps older refs (e.g. the main fallback) building.
+          mkdir -p web/dist
+          cargo build --locked
 
       - name: Set Git user
         # Env/team operations commit through libgit2 and need an identity.
