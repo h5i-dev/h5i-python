@@ -17,8 +17,10 @@ from h5i.orchestra import Conductor
 
 async def main(task: str) -> None:
     async with Conductor(".", "ensemble-demo", launcher="resident") as c:
-        claude = await c.hire("claude", runtime="claude")
-        codex = await c.hire("codex", runtime="codex")
+        claude = await c.hire(
+            "claude", runtime="claude", model="claude-haiku-4-5"
+        )
+        codex = await c.hire("codex", runtime="codex", model="gpt-5.4-mini")
 
         # Fail the predictable ways now, not at minute 30.
         # LaunchResident starts each session on its first turn, so there is no

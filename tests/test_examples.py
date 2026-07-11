@@ -5,6 +5,7 @@ import pytest
 
 
 EXAMPLES = Path(__file__).parents[1] / "examples"
+CHEAP_MODELS = {"claude-haiku-4-5", "gpt-5.4-mini"}
 
 
 @pytest.mark.parametrize("path", sorted(EXAMPLES.glob("*.py")), ids=lambda p: p.name)
@@ -28,3 +29,26 @@ def test_resident_examples_do_not_preflight_live_sessions(name: str):
         'launcher="resident" starts sessions lazily on the first turn; '
         "preflight(live=...) fails before that turn can start them"
     )
+
+
+@pytest.mark.parametrize("path", sorted(EXAMPLES.glob("*.py")), ids=lambda p: p.name)
+def test_examples_pin_cheap_models(path: Path):
+    tree = ast.parse(path.read_text())
+    hire_calls = [
+        call
+        for call in ast.walk(tree)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Attribute)
+        and call.func.attr == "hire"
+    ]
+
+    assert all(any(keyword.arg == "model" for keyword in call.keywords) for call in hire_calls)
+
+    explicit_models = {
+        node.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant)
+        and isinstance(node.value, str)
+        and (node.value.startswith("claude-") or node.value.startswith("gpt-"))
+    }
+    assert explicit_models <= CHEAP_MODELS

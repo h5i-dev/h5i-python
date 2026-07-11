@@ -19,8 +19,8 @@ from h5i.orchestra import Conductor, patterns
 async def main(task: str) -> None:
     async with Conductor(".", "arena-demo", launcher="resident") as c:
         agents = await asyncio.gather(
-            c.hire("claude", runtime="claude"),
-            c.hire("codex", runtime="codex"),
+            c.hire("claude", runtime="claude", model="claude-haiku-4-5"),
+            c.hire("codex", runtime="codex", model="gpt-5.4-mini"),
             c.hire("haiku", runtime="claude", model="claude-haiku-4-5"),
         )
         # LaunchResident starts each session on its first turn, so there is no

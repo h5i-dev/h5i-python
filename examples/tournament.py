@@ -18,10 +18,10 @@ VERIFY = ["cargo", "test", "--quiet"]
 
 #: (name, runtime, model) seeds, bracket order.
 SEEDS = [
-    ("claude", "claude", None),
-    ("codex", "codex", None),
+    ("claude", "claude", "claude-haiku-4-5"),
+    ("codex", "codex", "gpt-5.4-mini"),
     ("haiku", "claude", "claude-haiku-4-5"),
-    ("opus", "claude", "claude-opus-4-8"),
+    ("haiku-2", "claude", "claude-haiku-4-5"),
 ]
 
 

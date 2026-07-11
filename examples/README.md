@@ -45,15 +45,17 @@ python examples/custom_control_flow.py   # uses the default "attach" launcher:
                                          # park resident sessions yourself first
 ```
 
-Model coverage varies: `arena_score.py` and `review_escalation.py` hire
-`claude-haiku-4-5`, and `judge_panel_score.py`, `review_escalation.py`, and
-`tournament.py` hire `claude-opus-4-8` — edit the `model=` arguments if your
-account lacks a model. To resume an interrupted run, just re-run the same
-command — each script fixes its run id (`"arena-demo"`, `"pipeline-demo"`, …)
-and the journal replays completed steps. Scores that end in an `apply` pause
-at a durable human gate: the question is delivered over `h5i msg`, so answer
-it from the inbox (`h5i msg inbox`, then `h5i msg ack <n>` / `h5i msg reply
-<n> …`) before the winner touches your worktree.
+Every example pins inexpensive models instead of inheriting a potentially
+costly CLI default: Claude seats use `claude-haiku-4-5` and Codex seats use
+`gpt-5.4-mini`. Edit the `model=` arguments if your account lacks either model.
+Changing a model on an existing run does not rewrite a journaled hire, so also
+change the run id (for example, `"ensemble-demo-v2"`) when experimenting with
+another model. To resume an interrupted run without configuration changes,
+just re-run the same command — each script fixes its run id (`"arena-demo"`,
+`"pipeline-demo"`, …) and the journal replays completed steps. Scores that end
+in an `apply` pause at a durable human gate: the question is delivered over
+`h5i msg`, so answer it from the inbox (`h5i msg inbox`, then `h5i msg ack <n>`
+/ `h5i msg reply <n> …`) before the winner touches your worktree.
 
 ## One pattern each
 

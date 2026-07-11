@@ -20,7 +20,9 @@ MAX_REVISE_CYCLES = 2
 async def main(task: str) -> None:
     async with Conductor(".", "escalation-demo", launcher="resident") as c:
         junior = await c.hire("junior", runtime="claude", model="claude-haiku-4-5")
-        senior = await c.hire("senior", runtime="claude", model="claude-opus-4-8")
+        senior = await c.hire(
+            "senior", runtime="claude", model="claude-haiku-4-5"
+        )
 
         artifact = await junior.work(task)
         await c.freeze()
