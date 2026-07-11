@@ -192,7 +192,9 @@ async def test_judge_builtin_and_custom_policy():
 
         # Replayed verdicts skip the policy entirely.
         mock.on("conductor.judge_begin", lambda p: {"replayed": True, "verdict": verdict_raw})
-        never = lambda run: (_ for _ in ()).throw(AssertionError("policy ran on replay"))
+        def never(run):
+            raise AssertionError("policy ran on replay")
+
         replayed = await c.judge(never)
         assert replayed.method == "tests_then_smallest_diff"
     finally:

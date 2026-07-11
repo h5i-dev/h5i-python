@@ -19,7 +19,6 @@ without re-running completed agent turns — just run the same file again.
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import inspect
 import sys

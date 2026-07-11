@@ -30,7 +30,7 @@ dependencies = []
 Homepage = "https://github.com/Koukyosyumei/h5i"
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "pytest-asyncio>=0.23"]
+dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.6"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/h5i"]
@@ -38,3 +38,7 @@ packages = ["src/h5i"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+src = ["src", "tests"]
