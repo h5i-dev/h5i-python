@@ -129,6 +129,11 @@ out = await patterns.judge_panel(c, "smallest correct change", judges)
 out = await patterns.debate(c, "tabs or spaces?", [pro, con], moderator=mod)
 ```
 
+[`examples/`](examples/) has a complete, resumable score per pattern, plus
+composed ones — an escalation ladder, a debate that steers real work turns,
+and a multi-run tournament bracket — indexed in
+[`examples/README.md`](examples/README.md).
+
 ## Development
 
 ```bash
