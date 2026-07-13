@@ -5,6 +5,14 @@ again — journaled steps replay and the run continues where it stopped. They
 assume agent runtimes are available (`launcher="resident"` brings tmux
 sessions up itself; drop it if you park resident sessions yourself).
 
+You don't need to `tmux attach` by hand to watch the agents: a resident-launcher
+score auto-opens a viewer on each agent session as it comes up — a window
+linked into your current tmux session if you run the score inside tmux, a
+Windows Terminal tab under WSL, or a new GUI terminal window otherwise. In a
+headless shell it prints the exact `tmux attach -t …` command instead. Pass
+`watch=False` to `Conductor` to disable it, or set a custom terminal with
+`watch="kitty -e tmux attach -t {session}"` / `$H5I_TERMINAL`.
+
 ## Running the examples
 
 You need four things:

@@ -19,6 +19,7 @@ without re-running completed agent turns — just run the same file again.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import inspect
 import sys
@@ -26,6 +27,7 @@ from pathlib import Path
 from typing import Any, Awaitable, Callable, Iterable, Sequence
 
 from . import policy as _policy
+from ._watch import SessionWatcher
 from ._errors import BridgeClosedError, OrchestraError, ProtocolError
 from ._rpc import Bridge, resolve_h5i_bin
 from ._types import (
@@ -83,6 +85,14 @@ class Conductor:
     - ``score_digest``: provenance digest recorded at launch. Defaults to the
       sha256 of ``sys.argv[0]``; pass ``None`` to record nothing, or your own
       string.
+    - ``watch``: auto-open a viewer on each agent's resident tmux session as
+      it comes up, instead of hunting for ``tmux attach -t …`` by hand.
+      ``True`` picks the best available surface (a window linked into your
+      current tmux session, a Windows Terminal tab under WSL, or a GUI
+      terminal); a string is a command template, e.g.
+      ``watch="kitty -e tmux attach -t {session}"``. Defaults to on for
+      ``launcher="resident"`` (set ``watch=False`` to silence); viewer
+      failures never fail the score — they degrade to a printed attach hint.
     """
 
     def __init__(
@@ -100,6 +110,7 @@ class Conductor:
         turn_timeout: float | None = None,
         score_digest: Any = _AUTO,
         h5i_bin: str | None = None,
+        watch: bool | str | None = None,
     ):
         if not run:
             raise TypeError("Conductor(...) requires a run id: Conductor(repo, run)")
@@ -119,6 +130,8 @@ class Conductor:
         self._turn_timeout = turn_timeout
         self._score_digest = score_digest
         self._h5i_bin = h5i_bin
+        self._watch = self._launcher == "resident" if watch is None else watch
+        self._watch_task: asyncio.Task | None = None
         self._bridge: Bridge | None = None
         self._run_id: str | None = None
         self._actor_resolved: str | None = None
@@ -195,11 +208,24 @@ class Conductor:
         self._run_id = launched.get("run_id")
         self._actor_resolved = launched.get("actor")
         self._replayed_steps = int(launched.get("replayed_steps") or 0)
+        if self._watch and self._run_id:
+            watcher = SessionWatcher(
+                self._run_id,
+                template=self._watch if isinstance(self._watch, str) else None,
+            )
+            self._watch_task = asyncio.ensure_future(watcher.run())
         return self
 
     async def close(self) -> None:
         """Shut the bridge down. The run's journal stays durable — re-running
         the score resumes it."""
+        watch_task, self._watch_task = self._watch_task, None
+        if watch_task is not None:
+            watch_task.cancel()
+            try:
+                await watch_task
+            except (asyncio.CancelledError, Exception):
+                pass  # a viewer must never mask the real shutdown path
         bridge, self._bridge = self._bridge, None
         if bridge is not None:
             await bridge.notify_close()

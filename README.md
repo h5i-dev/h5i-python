@@ -110,6 +110,14 @@ brings up tmux sessions itself), or `on_turn=my_callback` (every turn is
 delivered to your Python function — script deterministic agents in tests, or
 spawn your own runtimes).
 
+**Watching resident sessions.** With `launcher="resident"` the score also
+auto-opens a viewer on each agent's tmux session as it comes up — a window
+linked into your current tmux session, a Windows Terminal tab under WSL, or a
+new GUI terminal — so you never hunt for `tmux attach -t …` by hand. Headless
+environments just get the attach command printed. Tune it with
+`watch="wezterm start -- tmux attach -t {session}"` (or `$H5I_TERMINAL`), or
+turn it off with `watch=False`.
+
 **Discipline the journal asks of you** (same as the Rust eDSL): steps that run
 concurrently need distinct labels (`c.scope(f"item/{i}").step("fetch", …)` in
 parallel loops), and one agent's turns run sequentially — one resident
