@@ -160,6 +160,95 @@ async def test_broken_viewer_degrades_to_hint():
     assert any(f"tmux attach -t {session}" in line for line in w.echoed)
 
 
+# ── pending-turn warnings ────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_warns_once_when_an_expected_session_never_appears():
+    w = ScriptedWatcher("run1", [[], [], []], grace=0.0)
+    w.expect("claude", "env/claude/run1-claude")
+    await asyncio.sleep(0.01)  # move past the zero grace period
+    for _ in range(3):
+        await w.poll_once()
+    warnings = [l for l in w.echoed if "has not appeared" in l]
+    assert len(warnings) == 1, w.echoed
+    assert "h5i env shell env/claude/run1-claude -- true" in warnings[0]
+
+
+@pytest.mark.asyncio
+async def test_no_warning_while_the_expected_session_is_up():
+    session = session_prefix("run1") + "claude"
+    w = ScriptedWatcher("run1", [[session], [session]], grace=0.0)
+    w.expect("claude", "env/x")
+    for _ in range(2):
+        await w.poll_once()
+    assert not any("WARNING" in l for l in w.echoed)
+
+
+@pytest.mark.asyncio
+async def test_session_dying_mid_turn_is_a_warning():
+    session = session_prefix("run1") + "claude"
+    w = ScriptedWatcher("run1", [[session], [], []], grace=0.0)
+    w.expect("claude", "env/x")
+    for _ in range(3):
+        await w.poll_once()
+    died = [l for l in w.echoed if "ended while its turn is still pending" in l]
+    assert len(died) == 1, w.echoed
+    # ...and the death warning is not doubled by the never-appeared check.
+    assert not any("has not appeared" in l for l in w.echoed)
+
+
+@pytest.mark.asyncio
+async def test_unexpect_silences_the_deadline():
+    w = ScriptedWatcher("run1", [[], []], grace=0.0)
+    w.expect("claude", "env/x")
+    w.unexpect("claude")
+    await asyncio.sleep(0.01)
+    for _ in range(2):
+        await w.poll_once()
+    assert not any("WARNING" in l for l in w.echoed)
+
+
+@pytest.mark.asyncio
+async def test_turn_request_registers_expectation_with_the_watcher():
+    from mock_server import MockOrchestra, launch_conductor
+
+    class FakeWatcher:
+        def __init__(self):
+            self.calls = []
+
+        def expect(self, agent_id, env_id):
+            self.calls.append(("expect", agent_id, env_id))
+
+        def unexpect(self, agent_id):
+            self.calls.append(("unexpect", agent_id))
+
+    mock = MockOrchestra()
+    mock.on("agent.hire", lambda p: {"agent_id": p["name"], "env_id": f"env/{p['name']}/r"})
+    mock.on(
+        "agent.work",
+        lambda p: {
+            "id": "sha:1", "owner_agent": p["agent"], "round": 1,
+            "env_id": p["env_id"], "commit_oid": "c", "tree_oid": "t",
+            "capture_ids": [], "files_changed": 1, "insertions": 1,
+            "deletions": 0, "submitted_at": "2026-01-01T00:00:00Z",
+            "independent": True,
+        },
+    )
+    c = await launch_conductor(mock, launcher="resident", watch=False)
+    try:
+        fake = FakeWatcher()
+        c._session_watcher = fake
+        agent = await c.hire("claude", runtime="claude")
+        await agent.work("task")
+        assert fake.calls == [
+            ("expect", "claude", "env/claude/r"),
+            ("unexpect", "claude"),
+        ]
+    finally:
+        await c.close()
+
+
 # ── Conductor wiring ─────────────────────────────────────────────────────────
 
 

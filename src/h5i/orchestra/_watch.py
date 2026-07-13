@@ -120,16 +120,53 @@ class SessionWatcher:
         template: str | None = None,
         opener: Opener | None = None,
         poll_interval: float = 1.0,
+        grace: float = 15.0,
         echo: Callable[[str], None] | None = None,
     ):
         self._prefix = session_prefix(run_id)
         self._opener = opener or resolve_opener(template)
         self._poll_interval = poll_interval
+        self._grace = grace
         self._echo = echo or (lambda line: print(line, file=sys.stderr, flush=True))
         self._open_now: set[str] = set()
+        #: session name → pending-turn record (env id, started-at, warned yet).
+        self._expected: dict[str, dict[str, Any]] = {}
 
     def _agent(self, session: str) -> str:
         return session[len(self._prefix):] or session
+
+    # ── pending-turn tracking (fed by Agent turn calls) ─────────────────────
+
+    def expect(self, agent_id: str, env_id: str) -> None:
+        """A turn for ``agent_id`` is in flight — its session should exist
+        (or appear within the grace period). Warns loudly otherwise: the
+        classic silent failure is a session that dies on startup because the
+        env behind it is gone."""
+        self._expected[f"{self._prefix}{agent_id}"] = {
+            "env": env_id,
+            "since": asyncio.get_running_loop().time(),
+            "warned": False,
+        }
+
+    def unexpect(self, agent_id: str) -> None:
+        """The turn finished (either way) — stop holding it to the deadline."""
+        self._expected.pop(f"{self._prefix}{agent_id}", None)
+
+    def _check_expected(self, current: set[str]) -> None:
+        now = asyncio.get_running_loop().time()
+        for session, pending in self._expected.items():
+            if session in current:
+                pending["warned"] = False  # it's up; re-arm for a later death
+                continue
+            if pending["warned"] or now - pending["since"] <= self._grace:
+                continue
+            pending["warned"] = True
+            self._echo(
+                f"[h5i] WARNING: agent '{self._agent(session)}' has a turn in flight "
+                f"but its tmux session ({session}) has not appeared in {int(self._grace)}s "
+                f"— it may be dying on startup. Check the env is alive: "
+                f"h5i env shell {pending['env']} -- true"
+            )
 
     async def run(self) -> None:
         """Poll until cancelled (or until tmux turns out not to exist)."""
@@ -153,13 +190,24 @@ class SessionWatcher:
             return False  # no tmux binary — sessions will never appear
         current = {n for n in names if n.startswith(self._prefix)}
         for session in sorted(self._open_now - current):
-            self._echo(
-                f"[h5i] agent '{self._agent(session)}' session ended ({session})"
-            )
+            pending = self._expected.get(session)
+            if pending is not None:
+                pending["warned"] = True  # this line already says it all
+                self._echo(
+                    f"[h5i] WARNING: agent '{self._agent(session)}' session ended "
+                    f"while its turn is still pending ({session}) — the runtime may "
+                    f"have crashed. Check the env is alive: "
+                    f"h5i env shell {pending['env']} -- true"
+                )
+            else:
+                self._echo(
+                    f"[h5i] agent '{self._agent(session)}' session ended ({session})"
+                )
         self._open_now &= current  # a vanished session may come back
         for session in sorted(current - self._open_now):
             self._open_now.add(session)
             await self._open(session)
+        self._check_expected(current)
         return True
 
     async def _list_sessions(self) -> list[str] | None:

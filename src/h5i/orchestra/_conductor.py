@@ -132,6 +132,7 @@ class Conductor:
         self._h5i_bin = h5i_bin
         self._watch = self._launcher == "resident" if watch is None else watch
         self._watch_task: asyncio.Task | None = None
+        self._session_watcher: SessionWatcher | None = None
         self._bridge: Bridge | None = None
         self._run_id: str | None = None
         self._actor_resolved: str | None = None
@@ -209,11 +210,11 @@ class Conductor:
         self._actor_resolved = launched.get("actor")
         self._replayed_steps = int(launched.get("replayed_steps") or 0)
         if self._watch and self._run_id:
-            watcher = SessionWatcher(
+            self._session_watcher = SessionWatcher(
                 self._run_id,
                 template=self._watch if isinstance(self._watch, str) else None,
             )
-            self._watch_task = asyncio.ensure_future(watcher.run())
+            self._watch_task = asyncio.ensure_future(self._session_watcher.run())
         return self
 
     async def close(self) -> None:
@@ -450,6 +451,21 @@ class Conductor:
             )
         return await self._bridge.request(method, params)
 
+    async def _turn_request(
+        self, method: str, params: dict, agent_id: str, env_id: str
+    ) -> Any:
+        """A `_request` that tells the session watcher a turn is in flight for
+        ``agent_id`` — so a resident session that dies on startup (or mid-turn)
+        is warned about instead of the score hanging silently."""
+        watcher = self._session_watcher
+        if watcher is None or self._launcher != "resident":
+            return await self._request(method, params)
+        watcher.expect(agent_id, env_id)
+        try:
+            return await self._request(method, params)
+        finally:
+            watcher.unexpect(agent_id)
+
     async def _abort(self, method: str, token: str) -> None:
         try:
             await self._request(method, {"token": token})
@@ -519,7 +535,9 @@ class Agent:
         }
         if materials:
             params["materials"] = [m.to_payload() for m in materials]
-        raw = await self._conductor._request("agent.work", params)
+        raw = await self._conductor._turn_request(
+            "agent.work", params, self.id, self.env_id
+        )
         return Artifact.from_raw(raw)
 
     async def ask(
@@ -544,9 +562,11 @@ class Agent:
         value: Any = None
         last_error: Exception | None = None
         for _ in range(max(1, attempts)):
-            value = await self._conductor._request(
+            value = await self._conductor._turn_request(
                 "agent.ask",
                 {"agent": self.id, "env_id": self.env_id, "prompt": current},
+                self.id,
+                self.env_id,
             )
             if parse is None:
                 return value
@@ -566,20 +586,22 @@ class Agent:
 
     async def review(self, artifact: Artifact) -> Review:
         """Review a teammate's artifact (scoped read grant → posted review)."""
-        raw = await self._conductor._request(
+        raw = await self._conductor._turn_request(
             "agent.review",
             {
                 "reviewer": self.id,
                 "env_id": self.env_id,
                 "artifact": artifact.to_payload(),
             },
+            self.id,
+            self.env_id,
         )
         return Review.from_raw(raw)
 
     async def revise(self, artifact: Artifact, review: Review) -> Artifact:
         """Address a review and re-submit. Completes on any new submission —
         an agent that finds nothing to fix re-submits as-is."""
-        raw = await self._conductor._request(
+        raw = await self._conductor._turn_request(
             "agent.revise",
             {
                 "agent": self.id,
@@ -587,5 +609,7 @@ class Agent:
                 "artifact": artifact.to_payload(),
                 "review": review.to_payload(),
             },
+            self.id,
+            self.env_id,
         )
         return Artifact.from_raw(raw)

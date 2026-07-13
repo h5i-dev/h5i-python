@@ -9,7 +9,9 @@ You don't need to `tmux attach` by hand to watch the agents: a resident-launcher
 score auto-opens a viewer on each agent session as it comes up — a window
 linked into your current tmux session if you run the score inside tmux, a
 Windows Terminal tab under WSL, or a new GUI terminal window otherwise. In a
-headless shell it prints the exact `tmux attach -t …` command instead. Pass
+headless shell it prints the exact `tmux attach -t …` command instead. It also
+warns when an agent has a turn in flight but its session never appeared or died
+mid-turn (with the `h5i env shell … -- true` command to diagnose why). Pass
 `watch=False` to `Conductor` to disable it, or set a custom terminal with
 `watch="kitty -e tmux attach -t {session}"` / `$H5I_TERMINAL`.
 
