@@ -128,8 +128,17 @@ class SessionWatcher:
         self._echo = echo or (lambda line: print(line, file=sys.stderr, flush=True))
         self._open_now: set[str] = set()
 
+    def _agent(self, session: str) -> str:
+        return session[len(self._prefix):] or session
+
     async def run(self) -> None:
         """Poll until cancelled (or until tmux turns out not to exist)."""
+        how = (
+            f"each opens in {self._opener.name} as its first turn starts"
+            if self._opener.kind != "hint"
+            else "attach commands are printed as each comes up"
+        )
+        self._echo(f"[h5i] watching for agent sessions ({self._prefix}*) — {how}")
         while await self.poll_once():
             await asyncio.sleep(self._poll_interval)
 
@@ -137,8 +146,16 @@ class SessionWatcher:
         """One poll step; returns False when polling can never succeed."""
         names = await self._list_sessions()
         if names is None:
+            self._echo(
+                "[h5i] tmux not found — agent sessions cannot be watched "
+                "(the resident launcher needs tmux)"
+            )
             return False  # no tmux binary — sessions will never appear
         current = {n for n in names if n.startswith(self._prefix)}
+        for session in sorted(self._open_now - current):
+            self._echo(
+                f"[h5i] agent '{self._agent(session)}' session ended ({session})"
+            )
         self._open_now &= current  # a vanished session may come back
         for session in sorted(current - self._open_now):
             self._open_now.add(session)
@@ -164,26 +181,32 @@ class SessionWatcher:
 
     async def _open(self, session: str) -> None:
         opener = self._opener
+        agent = self._agent(session)
         try:
             if opener.kind == "spawn":
                 assert opener.argv is not None
                 await self._spawn(opener.argv(session))
-                self._echo(f"[h5i] agent session '{session}' up — opened in {opener.name}")
+                self._echo(
+                    f"[h5i] agent '{agent}' session up — opened in {opener.name} "
+                    f"(or: tmux attach -t {session})"
+                )
                 return
             if opener.kind == "tmux-link":
                 await self._link_window(session)
                 self._echo(
-                    f"[h5i] agent session '{session}' up — linked as a window "
-                    "in your current tmux session"
+                    f"[h5i] agent '{agent}' session up — linked as window "
+                    f"'{session}' in your current tmux session"
                 )
                 return
         except Exception as e:  # a broken viewer must not fail the score
             self._echo(
-                f"[h5i] could not open a viewer for '{session}' ({e}) — "
+                f"[h5i] agent '{agent}' session up, but its viewer failed ({e}) — "
                 f"attach with: tmux attach -t {session}"
             )
             return
-        self._echo(f"[h5i] agent session up — view it with: tmux attach -t {session}")
+        self._echo(
+            f"[h5i] agent '{agent}' session up — view it with: tmux attach -t {session}"
+        )
 
     async def _spawn(self, argv: list[str]) -> None:
         proc = await asyncio.create_subprocess_exec(

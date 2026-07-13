@@ -127,6 +127,15 @@ async def test_reopens_a_session_that_died_and_came_back():
     for _ in range(3):
         await w.poll_once()
     assert w.opened == [session, session]
+    assert any("'claude' session ended" in line for line in w.echoed)
+
+
+@pytest.mark.asyncio
+async def test_run_logs_watch_start_and_missing_tmux():
+    w = ScriptedWatcher("run1", [None], poll_interval=0)
+    await w.run()
+    assert any("watching for agent sessions" in line for line in w.echoed)
+    assert any("tmux not found" in line for line in w.echoed)
 
 
 @pytest.mark.asyncio
