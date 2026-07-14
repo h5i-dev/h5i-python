@@ -88,6 +88,7 @@ class ScriptedWatcher(SessionWatcher):
     def __init__(self, run_id: str, listings, **kwargs):
         self.opened: list[str] = []
         self.echoed: list[str] = []
+        kwargs.setdefault("spawn_gap", 0.0)
         super().__init__(
             run_id,
             opener=Opener("fake", "spawn", lambda s: ["true", s]),
@@ -145,6 +146,36 @@ async def test_no_tmux_binary_stops_the_loop():
             return None
 
     assert not await NoTmux("run1", []).poll_once()
+
+
+@pytest.mark.asyncio
+async def test_two_sessions_in_one_poll_both_open():
+    prefix = session_prefix("run1")
+    w = ScriptedWatcher("run1", [[f"{prefix}claude", f"{prefix}codex"]])
+    assert await w.poll_once()
+    assert w.opened == [f"{prefix}claude", f"{prefix}codex"]
+
+
+@pytest.mark.asyncio
+async def test_spawn_success_and_fast_failure():
+    session = session_prefix("run1") + "claude"
+
+    class RealSpawn(ScriptedWatcher):
+        async def _spawn(self, argv):
+            await SessionWatcher._spawn(self, argv)
+
+    # `true` exits 0 fast → treated as a successful dispatch.
+    ok = RealSpawn("run1", [[session]])
+    ok._opener = Opener("true", "spawn", lambda s: ["true"])
+    await ok.poll_once()
+    assert any("opened in true" in l for l in ok.echoed)
+
+    # `false` exits non-zero fast → the viewer failed; degrade to the hint.
+    bad = RealSpawn("run1", [[session]])
+    bad._opener = Opener("false", "spawn", lambda s: ["false"])
+    await bad.poll_once()
+    assert any(f"tmux attach -t {session}" in l for l in bad.echoed), bad.echoed
+    assert not any("opened in false" in l for l in bad.echoed)
 
 
 @pytest.mark.asyncio

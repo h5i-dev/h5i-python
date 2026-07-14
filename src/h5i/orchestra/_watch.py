@@ -121,12 +121,14 @@ class SessionWatcher:
         opener: Opener | None = None,
         poll_interval: float = 1.0,
         grace: float = 15.0,
+        spawn_gap: float = 0.5,
         echo: Callable[[str], None] | None = None,
     ):
         self._prefix = session_prefix(run_id)
         self._opener = opener or resolve_opener(template)
         self._poll_interval = poll_interval
         self._grace = grace
+        self._spawn_gap = spawn_gap
         self._echo = echo or (lambda line: print(line, file=sys.stderr, flush=True))
         self._open_now: set[str] = set()
         #: session name → pending-turn record (env id, started-at, warned yet).
@@ -204,8 +206,14 @@ class SessionWatcher:
                     f"[h5i] agent '{self._agent(session)}' session ended ({session})"
                 )
         self._open_now &= current  # a vanished session may come back
-        for session in sorted(current - self._open_now):
+        for i, session in enumerate(sorted(current - self._open_now)):
             self._open_now.add(session)
+            if i:
+                # Several agents often come up in one poll (gathered first
+                # turns). Rapid-fire viewer spawns race — Windows Terminal
+                # drops tabs dispatched near-simultaneously — so give each
+                # viewer a beat to register before the next.
+                await asyncio.sleep(self._spawn_gap)
             await self._open(session)
         self._check_expected(current)
         return True
@@ -264,8 +272,15 @@ class SessionWatcher:
             stderr=asyncio.subprocess.DEVNULL,
             start_new_session=True,
         )
-        # Terminals live as long as the viewer stays open; reap in background.
-        asyncio.ensure_future(proc.wait())
+        # Two kinds of viewer command: dispatchers (wt.exe, wezterm cli) exit
+        # as soon as the tab is registered — wait for that, so consecutive
+        # opens don't race, and a fast non-zero exit means the viewer failed
+        # (degrade to the attach hint). Long-lived terminals (kitty, xterm)
+        # outlive the timeout; leave them reaping in the background.
+        waiter = asyncio.ensure_future(proc.wait())
+        done, _ = await asyncio.wait({waiter}, timeout=2.0)
+        if waiter in done and waiter.result() != 0:
+            raise RuntimeError(f"viewer command exited with status {waiter.result()}")
 
     async def _link_window(self, session: str) -> None:
         proc = await asyncio.create_subprocess_exec(
