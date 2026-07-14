@@ -32,7 +32,7 @@ import os
 import shlex
 import shutil
 import sys
-from typing import Callable, Mapping, NamedTuple
+from typing import Any, Callable, Mapping, NamedTuple
 
 __all__ = ["Opener", "SessionWatcher", "resolve_opener", "session_prefix"]
 

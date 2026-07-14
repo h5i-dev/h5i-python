@@ -168,14 +168,14 @@ async def test_spawn_success_and_fast_failure():
     ok = RealSpawn("run1", [[session]])
     ok._opener = Opener("true", "spawn", lambda s: ["true"])
     await ok.poll_once()
-    assert any("opened in true" in l for l in ok.echoed)
+    assert any("opened in true" in line for line in ok.echoed)
 
     # `false` exits non-zero fast → the viewer failed; degrade to the hint.
     bad = RealSpawn("run1", [[session]])
     bad._opener = Opener("false", "spawn", lambda s: ["false"])
     await bad.poll_once()
-    assert any(f"tmux attach -t {session}" in l for l in bad.echoed), bad.echoed
-    assert not any("opened in false" in l for l in bad.echoed)
+    assert any(f"tmux attach -t {session}" in line for line in bad.echoed), bad.echoed
+    assert not any("opened in false" in line for line in bad.echoed)
 
 
 @pytest.mark.asyncio
@@ -201,7 +201,7 @@ async def test_warns_once_when_an_expected_session_never_appears():
     await asyncio.sleep(0.01)  # move past the zero grace period
     for _ in range(3):
         await w.poll_once()
-    warnings = [l for l in w.echoed if "has not appeared" in l]
+    warnings = [line for line in w.echoed if "has not appeared" in line]
     assert len(warnings) == 1, w.echoed
     assert "h5i env shell env/claude/run1-claude -- true" in warnings[0]
 
@@ -213,7 +213,7 @@ async def test_no_warning_while_the_expected_session_is_up():
     w.expect("claude", "env/x")
     for _ in range(2):
         await w.poll_once()
-    assert not any("WARNING" in l for l in w.echoed)
+    assert not any("WARNING" in line for line in w.echoed)
 
 
 @pytest.mark.asyncio
@@ -223,10 +223,10 @@ async def test_session_dying_mid_turn_is_a_warning():
     w.expect("claude", "env/x")
     for _ in range(3):
         await w.poll_once()
-    died = [l for l in w.echoed if "ended while its turn is still pending" in l]
+    died = [line for line in w.echoed if "ended while its turn is still pending" in line]
     assert len(died) == 1, w.echoed
     # ...and the death warning is not doubled by the never-appeared check.
-    assert not any("has not appeared" in l for l in w.echoed)
+    assert not any("has not appeared" in line for line in w.echoed)
 
 
 @pytest.mark.asyncio
@@ -237,7 +237,7 @@ async def test_unexpect_silences_the_deadline():
     await asyncio.sleep(0.01)
     for _ in range(2):
         await w.poll_once()
-    assert not any("WARNING" in l for l in w.echoed)
+    assert not any("WARNING" in line for line in w.echoed)
 
 
 @pytest.mark.asyncio
