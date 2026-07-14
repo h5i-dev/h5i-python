@@ -78,6 +78,9 @@ async def test_work_round_trip_preserves_unknown_fields():
         (hire,) = mock.calls_to("agent.hire")
         assert hire == {"name": "claude", "runtime": "claude", "model": "opus"}
 
+        await c.hire("codex", runtime="codex", model="gpt-5.4-mini", effort="medium")
+        assert mock.calls_to("agent.hire")[-1]["effort"] == "medium"
+
         artifact = await claude.work("do it", expect_independent=True)
         (work,) = mock.calls_to("agent.work")
         assert work["expect_independent"] is True

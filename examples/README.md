@@ -66,7 +66,9 @@ ecosystem, change the `verify` command in the score too (e.g. back to
 
 Every example pins inexpensive models instead of inheriting a potentially
 costly CLI default: Claude seats use `claude-haiku-4-5` and Codex seats use
-`gpt-5.4-mini`. Edit the `model=` arguments if your account lacks either model.
+`gpt-5.4-mini` with `effort="medium"` (launched as
+`-c model_reasoning_effort=medium`, which wins over your `~/.codex/config.toml`
+— so a `high` default there won't slow the demos down). Edit the `model=` arguments if your account lacks either model.
 Changing a model on an existing run does not rewrite a journaled hire, so also
 change the run id (for example, `"ensemble-demo-v2"`) when experimenting with
 another model. To resume an interrupted run without configuration changes,

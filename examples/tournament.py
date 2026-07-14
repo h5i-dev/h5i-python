@@ -32,7 +32,13 @@ async def match(
     """One arena run; returns the winning seed."""
     async with Conductor(".", run_id, launcher="resident", isolation="supervised") as c:
         agents = {
-            name: await c.hire(name, runtime=runtime, model=model)
+            name: await c.hire(
+                name,
+                runtime=runtime,
+                model=model,
+                # Keep codex seats cheap; claude has no effort knob.
+                effort="medium" if runtime == "codex" else None,
+            )
             for name, runtime, model in contenders
         }
         outcome = await patterns.arena(c, task, list(agents.values()), verify=VERIFY)

@@ -22,7 +22,7 @@ async def main(task: str) -> None:
         claude = await c.hire(
             "claude", runtime="claude", model="claude-haiku-4-5"
         )
-        codex = await c.hire("codex", runtime="codex", model="gpt-5.4-mini")
+        codex = await c.hire("codex", runtime="codex", model="gpt-5.4-mini", effort="medium")
 
         # Fail the predictable ways now, not at minute 30.
         # LaunchResident starts each session on its first turn, so there is no

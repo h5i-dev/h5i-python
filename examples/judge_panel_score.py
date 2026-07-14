@@ -28,7 +28,7 @@ async def main(task: str) -> None:
     async with Conductor(".", "panel-demo", launcher="resident", isolation="supervised") as c:
         workers = await asyncio.gather(
             c.hire("claude", runtime="claude", model="claude-haiku-4-5"),
-            c.hire("codex", runtime="codex", model="gpt-5.4-mini"),
+            c.hire("codex", runtime="codex", model="gpt-5.4-mini", effort="medium"),
         )
         judges = await asyncio.gather(
             c.hire("judge-a", runtime="claude", model="claude-haiku-4-5"),

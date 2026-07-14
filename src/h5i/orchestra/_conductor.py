@@ -262,12 +262,18 @@ class Conductor:
         *,
         runtime: str | None = None,
         model: str | None = None,
+        effort: str | None = None,
         profile: str | None = None,
         isolation: str | None = None,
         env: str | None = None,
     ) -> "Agent":
         """Hire an agent into the run: create (or bind ``env``) its sandboxed
         env and enroll it on the roster. Journaled — a resume rebinds.
+
+        ``effort`` records a reasoning-effort override on the roster seat
+        (codex sessions launch with ``-c model_reasoning_effort=<effort>``,
+        which wins over the box's ``config.toml``). Runtimes without an
+        effort knob fail closed at launch rather than silently ignoring it.
 
         ``isolation`` requests a sandbox tier for the created env
         (``"workspace"``, ``"process"``, ``"supervised"``, ``"container"``, …),
@@ -283,6 +289,8 @@ class Conductor:
             params["runtime"] = runtime
         if model is not None:
             params["model"] = model
+        if effort is not None:
+            params["effort"] = effort
         if profile is not None:
             params["profile"] = profile
         if isolation is not None:

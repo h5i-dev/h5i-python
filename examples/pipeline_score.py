@@ -22,7 +22,7 @@ async def main(task: str) -> None:
         architect = await c.hire(
             "architect", runtime="claude", model="claude-haiku-4-5"
         )
-        builder = await c.hire("builder", runtime="codex", model="gpt-5.4-mini")
+        builder = await c.hire("builder", runtime="codex", model="gpt-5.4-mini", effort="medium")
         hardener = await c.hire(
             "hardener", runtime="claude", model="claude-haiku-4-5"
         )

@@ -28,7 +28,7 @@ async def main(task: str) -> None:
     question = question_for(task)
     async with Conductor(".", "debate-demo", launcher="resident", isolation="supervised") as c:
         pro = await c.hire("pro", runtime="claude", model="claude-haiku-4-5")
-        con = await c.hire("con", runtime="codex", model="gpt-5.4-mini")
+        con = await c.hire("con", runtime="codex", model="gpt-5.4-mini", effort="medium")
         moderator = await c.hire(
             "moderator", runtime="claude", model="claude-haiku-4-5"
         )
