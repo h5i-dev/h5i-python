@@ -6,22 +6,23 @@ influence edges in the event log).
 Stage 1 works pre-freeze; the round seals right after it, because materials
 ride the sealed-phase-only discuss channel.
 
-    python examples/pipeline_score.py
+    python examples/pipeline_score.py ["<task>"]   # default: implement quicksort with pytest
 """
 
 import asyncio
+import sys
 
 from h5i.orchestra import Conductor, patterns
 
-FEATURE = "add `--json` output to `h5i vibe`"
+DEMO_TASK = "implement quicksort with pytest"
 
 
-async def main() -> None:
-    async with Conductor(".", "pipeline-demo", launcher="resident") as c:
+async def main(task: str) -> None:
+    async with Conductor(".", "pipeline-demo", launcher="resident", isolation="supervised") as c:
         architect = await c.hire(
             "architect", runtime="claude", model="claude-haiku-4-5"
         )
-        builder = await c.hire("builder", runtime="codex", model="gpt-5.4-mini")
+        builder = await c.hire("builder", runtime="codex", model="gpt-5.4-mini", effort="medium")
         hardener = await c.hire(
             "hardener", runtime="claude", model="claude-haiku-4-5"
         )
@@ -31,8 +32,8 @@ async def main() -> None:
             [
                 (
                     architect,
-                    f"Design {FEATURE}: write docs/design-vibe-json.md with the "
-                    "schema, flag semantics, and test plan. Submit only the doc.",
+                    f"Design this task: {task}. Write docs/design.md with the "
+                    "approach, interface, and test plan. Submit only the doc.",
                 ),
                 (
                     builder,
@@ -51,11 +52,11 @@ async def main() -> None:
         print("stages:", [(a.owner_agent, a.id) for a in (design, impl, hardened)])
 
         # The final artifact carries the whole chain; verify and gate that one.
-        verification = await c.verify(hardened, ["cargo", "test", "--quiet"])
+        verification = await c.verify(hardened, ["pytest", "-q"])
         print("tests passed:", verification.tests_passed)
         if verification.tests_passed and (await c.gate("apply the pipeline result?")).approved:
             await c.apply(hardened, force=True)  # force: our gate is the verdict
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main(sys.argv[1] if len(sys.argv) > 1 else DEMO_TASK))

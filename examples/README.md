@@ -5,9 +5,19 @@ again — journaled steps replay and the run continues where it stopped. They
 assume agent runtimes are available (`launcher="resident"` brings tmux
 sessions up itself; drop it if you park resident sessions yourself).
 
+You don't need to `tmux attach` by hand to watch the agents: a resident-launcher
+score auto-opens a viewer on each agent session as it comes up — a window
+linked into your current tmux session if you run the score inside tmux, a
+Windows Terminal tab under WSL, or a new GUI terminal window otherwise. In a
+headless shell it prints the exact `tmux attach -t …` command instead. It also
+warns when an agent has a turn in flight but its session never appeared or died
+mid-turn (with the `h5i env shell … -- true` command to diagnose why). Pass
+`watch=False` to `Conductor` to disable it, or set a custom terminal with
+`watch="kitty -e tmux attach -t {session}"` / `$H5I_TERMINAL`.
+
 ## Running the examples
 
-You need four things:
+You need five things:
 
 1. **The SDK** — from the repo root: `pip install -e .` (Python ≥ 3.10).
 2. **The engine** — the `h5i` binary on `PATH` (`cargo install --path <h5i repo>`),
@@ -19,24 +29,28 @@ You need four things:
    the repository the agents should modify, with a **clean worktree** (the
    arena and ensemble scores call `preflight(clean_worktree=True)` and fail
    fast otherwise).
+5. **A host that can enforce the `supervised` sandbox tier** — every example
+   pins `isolation="supervised"` on the `Conductor`, so hired agents run in
+   supervised envs (seccomp-gated, network-jailed) rather than whatever tier
+   the host happens to auto-pick. The tier is fail-closed: on a host that
+   cannot enforce it, hire errors instead of silently downgrading — drop the
+   `isolation=` argument (or set `"auto"`) to fall back to auto-picking.
+   Note: a *resumed* run keeps the envs it was created with; changing the
+   tier (like changing a model) needs a fresh run id.
 
 `preflight(live=...)` is intended for the default `"attach"` launcher, where
 sessions must already be parked on their inboxes. Do not use that check before
 the first turn with `launcher="resident"`: resident sessions are started lazily
 when a turn is dispatched.
 
-Then run any example as a plain Python script. Three take the task as an
-optional CLI argument (falling back to a demo task):
+Then run any example as a plain Python script. Every example takes the task
+as an optional CLI argument and falls back to the same demo task,
+**`implement quicksort with pytest`** — so a bare invocation always works:
 
 ```bash
-python examples/ensemble_score.py    "implement quicksort"
-python examples/arena_score.py       "implement quicksort"
-python examples/review_escalation.py "implement quicksort"
-```
-
-The rest are self-contained — the task is written into the score:
-
-```bash
+python examples/ensemble_score.py                          # demo task
+python examples/arena_score.py       "implement quicksort with pytest"
+python examples/review_escalation.py "fix the flaky msg_integration test"
 python examples/pipeline_score.py
 python examples/judge_panel_score.py
 python examples/debate_then_build.py
@@ -45,9 +59,16 @@ python examples/custom_control_flow.py   # uses the default "attach" launcher:
                                          # park resident sessions yourself first
 ```
 
+To match the demo task, the scores verify candidates with `pytest -q` — the
+quicksort submissions carry their own tests. If you pass a task from another
+ecosystem, change the `verify` command in the score too (e.g. back to
+`["cargo", "test", "--quiet"]`).
+
 Every example pins inexpensive models instead of inheriting a potentially
 costly CLI default: Claude seats use `claude-haiku-4-5` and Codex seats use
-`gpt-5.4-mini`. Edit the `model=` arguments if your account lacks either model.
+`gpt-5.4-mini` with `effort="medium"` (launched as
+`-c model_reasoning_effort=medium`, which wins over your `~/.codex/config.toml`
+— so a `high` default there won't slow the demos down). Edit the `model=` arguments if your account lacks either model.
 Changing a model on an existing run does not rewrite a journaled hire, so also
 change the run id (for example, `"ensemble-demo-v2"`) when experimenting with
 another model. To resume an interrupted run without configuration changes,

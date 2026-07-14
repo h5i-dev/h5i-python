@@ -78,6 +78,9 @@ async def test_work_round_trip_preserves_unknown_fields():
         (hire,) = mock.calls_to("agent.hire")
         assert hire == {"name": "claude", "runtime": "claude", "model": "opus"}
 
+        await c.hire("codex", runtime="codex", model="gpt-5.4-mini", effort="medium")
+        assert mock.calls_to("agent.hire")[-1]["effort"] == "medium"
+
         artifact = await claude.work("do it", expect_independent=True)
         (work,) = mock.calls_to("agent.work")
         assert work["expect_independent"] is True
@@ -281,6 +284,31 @@ async def test_client_launcher_error_propagates_to_server():
         agent = await c.hire("claude")
         with pytest.raises(Exception, match="no session"):
             await agent.work("x")
+    finally:
+        await c.close()
+
+
+async def test_hire_isolation_run_default_and_override():
+    mock = MockOrchestra()
+    mock.on("agent.hire", lambda p: {"agent_id": p["name"], "env_id": "e"})
+    c = await launch_conductor(mock, isolation="supervised")
+    try:
+        await c.hire("a", runtime="claude")            # inherits the run tier
+        await c.hire("b", isolation="container")       # explicit override
+        await c.hire("c", isolation="auto")            # back to auto-picking
+        tiers = [p.get("isolation") for p in mock.calls_to("agent.hire")]
+        assert tiers == ["supervised", "container", "auto"]
+    finally:
+        await c.close()
+
+    # Without a run-level tier, hire sends nothing (server auto-picks).
+    mock = MockOrchestra()
+    mock.on("agent.hire", lambda p: {"agent_id": p["name"], "env_id": "e"})
+    c = await launch_conductor(mock)
+    try:
+        await c.hire("a")
+        (hire,) = mock.calls_to("agent.hire")
+        assert "isolation" not in hire
     finally:
         await c.close()
 

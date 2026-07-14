@@ -9,25 +9,26 @@ re-asked (bounded); the mean-score winner is recorded as an advisory verdict
 Judges are read-only seats that must be hired before the round seals —
 alongside the workers, exactly like the roster note in patterns.py says.
 
-    python examples/judge_panel_score.py
+    python examples/judge_panel_score.py ["<task>"]   # default: implement quicksort with pytest
 """
 
 import asyncio
+import sys
 
 from h5i.orchestra import Conductor, patterns
 
-TASK = "reduce `h5i team status` latency without changing its output"
+DEMO_TASK = "implement quicksort with pytest"
 RUBRIC = (
     "prefer the smallest change that demonstrably keeps behavior identical; "
     "penalize speculative refactors and untested hot paths"
 )
 
 
-async def main() -> None:
-    async with Conductor(".", "panel-demo", launcher="resident") as c:
+async def main(task: str) -> None:
+    async with Conductor(".", "panel-demo", launcher="resident", isolation="supervised") as c:
         workers = await asyncio.gather(
             c.hire("claude", runtime="claude", model="claude-haiku-4-5"),
-            c.hire("codex", runtime="codex", model="gpt-5.4-mini"),
+            c.hire("codex", runtime="codex", model="gpt-5.4-mini", effort="medium"),
         )
         judges = await asyncio.gather(
             c.hire("judge-a", runtime="claude", model="claude-haiku-4-5"),
@@ -36,11 +37,11 @@ async def main() -> None:
 
         # Independent attempts → seal → neutral evidence for the panel.
         artifacts = await asyncio.gather(
-            *(w.work(TASK, expect_independent=True) for w in workers)
+            *(w.work(task, expect_independent=True) for w in workers)
         )
         await c.freeze()
         for artifact in artifacts:
-            await c.verify(artifact, ["cargo", "test", "--quiet"])
+            await c.verify(artifact, ["pytest", "-q"])
 
         outcome = await patterns.judge_panel(c, RUBRIC, judges)
 
@@ -56,4 +57,4 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main(sys.argv[1] if len(sys.argv) > 1 else DEMO_TASK))

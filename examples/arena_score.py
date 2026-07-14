@@ -7,7 +7,7 @@ verifier command runs against every candidate, and the built-in policy picks
 the smallest green diff. The compare rows are the same arena view
 `h5i team compare` renders.
 
-    python examples/arena_score.py "make `h5i doctor` exit non-zero on repair failures"
+    python examples/arena_score.py ["<task>"]   # default: implement quicksort with pytest
 """
 
 import asyncio
@@ -15,23 +15,25 @@ import sys
 
 from h5i.orchestra import Conductor, patterns
 
+DEMO_TASK = "implement quicksort with pytest"
+
 
 async def main(task: str) -> None:
-    async with Conductor(".", "arena-demo", launcher="resident") as c:
+    async with Conductor(".", "arena-demo", launcher="resident", isolation="supervised") as c:
         agents = await asyncio.gather(
             c.hire("claude", runtime="claude", model="claude-haiku-4-5"),
-            c.hire("codex", runtime="codex", model="gpt-5.4-mini"),
+            c.hire("codex", runtime="codex", model="gpt-5.4-mini", effort="medium"),
             c.hire("haiku", runtime="claude", model="claude-haiku-4-5"),
         )
         # LaunchResident starts each session on its first turn, so there is no
         # live session to check yet.  Still fail fast on repository hygiene.
-        await c.preflight(clean_worktree=True)
+        await c.preflight(clean_worktree=True, min_isolation="supervised")
 
         outcome = await patterns.arena(
             c,
             task,
             agents,
-            verify=["cargo", "test", "--quiet"],
+            verify=["pytest", "-q"],
             isolation="process",
         )
 
@@ -54,4 +56,4 @@ async def main(task: str) -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main(sys.argv[1] if len(sys.argv) > 1 else "demo task"))
+    asyncio.run(main(sys.argv[1] if len(sys.argv) > 1 else DEMO_TASK))

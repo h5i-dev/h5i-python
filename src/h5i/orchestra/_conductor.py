@@ -19,6 +19,7 @@ without re-running completed agent turns — just run the same file again.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import inspect
 import sys
@@ -26,6 +27,7 @@ from pathlib import Path
 from typing import Any, Awaitable, Callable, Iterable, Sequence
 
 from . import policy as _policy
+from ._watch import SessionWatcher
 from ._errors import BridgeClosedError, OrchestraError, ProtocolError
 from ._rpc import Bridge, resolve_h5i_bin
 from ._types import (
@@ -79,10 +81,24 @@ class Conductor:
       itself), or ``"client"`` (every turn is delivered to ``on_turn`` in
       *this* process — how tests script agents, and how a score can spawn
       its own runtimes). Passing ``on_turn`` implies ``"client"``.
+    - ``isolation``: the run's default sandbox tier for hired agents' envs
+      (``"workspace"``, ``"process"``, ``"supervised"``, ``"container"``, …).
+      Every :meth:`hire` inherits it unless it passes its own. An explicit
+      tier is fail-closed — hire errors if the host cannot enforce it, never
+      silently downgrades; ``None`` auto-picks per env, like
+      ``h5i env create``.
     - ``turn_timeout``/``poll_interval``: seconds (floats fine).
     - ``score_digest``: provenance digest recorded at launch. Defaults to the
       sha256 of ``sys.argv[0]``; pass ``None`` to record nothing, or your own
       string.
+    - ``watch``: auto-open a viewer on each agent's resident tmux session as
+      it comes up, instead of hunting for ``tmux attach -t …`` by hand.
+      ``True`` picks the best available surface (a window linked into your
+      current tmux session, a Windows Terminal tab under WSL, or a GUI
+      terminal); a string is a command template, e.g.
+      ``watch="kitty -e tmux attach -t {session}"``. Defaults to on for
+      ``launcher="resident"`` (set ``watch=False`` to silence); viewer
+      failures never fail the score — they degrade to a printed attach hint.
     """
 
     def __init__(
@@ -95,11 +111,13 @@ class Conductor:
         max_rounds: int | None = None,
         actor: str | None = None,
         launcher: str | None = None,
+        isolation: str | None = None,
         on_turn: OnTurn | None = None,
         poll_interval: float | None = None,
         turn_timeout: float | None = None,
         score_digest: Any = _AUTO,
         h5i_bin: str | None = None,
+        watch: bool | str | None = None,
     ):
         if not run:
             raise TypeError("Conductor(...) requires a run id: Conductor(repo, run)")
@@ -114,11 +132,15 @@ class Conductor:
         self._max_rounds = max_rounds
         self._actor = actor
         self._launcher = "client" if on_turn is not None else (launcher or "attach")
+        self._isolation = isolation
         self._on_turn = on_turn
         self._poll_interval = poll_interval
         self._turn_timeout = turn_timeout
         self._score_digest = score_digest
         self._h5i_bin = h5i_bin
+        self._watch = self._launcher == "resident" if watch is None else watch
+        self._watch_task: asyncio.Task | None = None
+        self._session_watcher: SessionWatcher | None = None
         self._bridge: Bridge | None = None
         self._run_id: str | None = None
         self._actor_resolved: str | None = None
@@ -195,11 +217,24 @@ class Conductor:
         self._run_id = launched.get("run_id")
         self._actor_resolved = launched.get("actor")
         self._replayed_steps = int(launched.get("replayed_steps") or 0)
+        if self._watch and self._run_id:
+            self._session_watcher = SessionWatcher(
+                self._run_id,
+                template=self._watch if isinstance(self._watch, str) else None,
+            )
+            self._watch_task = asyncio.ensure_future(self._session_watcher.run())
         return self
 
     async def close(self) -> None:
         """Shut the bridge down. The run's journal stays durable — re-running
         the score resumes it."""
+        watch_task, self._watch_task = self._watch_task, None
+        if watch_task is not None:
+            watch_task.cancel()
+            try:
+                await watch_task
+            except (asyncio.CancelledError, Exception):
+                pass  # a viewer must never mask the real shutdown path
         bridge, self._bridge = self._bridge, None
         if bridge is not None:
             await bridge.notify_close()
@@ -227,18 +262,39 @@ class Conductor:
         *,
         runtime: str | None = None,
         model: str | None = None,
+        effort: str | None = None,
         profile: str | None = None,
+        isolation: str | None = None,
         env: str | None = None,
     ) -> "Agent":
         """Hire an agent into the run: create (or bind ``env``) its sandboxed
-        env and enroll it on the roster. Journaled — a resume rebinds."""
+        env and enroll it on the roster. Journaled — a resume rebinds.
+
+        ``effort`` records a reasoning-effort override on the roster seat
+        (codex sessions launch with ``-c model_reasoning_effort=<effort>``,
+        which wins over the box's ``config.toml``). Runtimes without an
+        effort knob fail closed at launch rather than silently ignoring it.
+
+        ``isolation`` requests a sandbox tier for the created env
+        (``"workspace"``, ``"process"``, ``"supervised"``, ``"container"``, …),
+        defaulting to the conductor's run-level ``isolation``. An explicit
+        tier is fail-closed — hire errors if the host cannot enforce it,
+        never silently downgrades; pass ``"auto"`` to override a run-level
+        tier back to auto-picking.
+        """
+        if isolation is None:
+            isolation = self._isolation
         params: dict[str, Any] = {"name": name}
         if runtime is not None:
             params["runtime"] = runtime
         if model is not None:
             params["model"] = model
+        if effort is not None:
+            params["effort"] = effort
         if profile is not None:
             params["profile"] = profile
+        if isolation is not None:
+            params["isolation"] = isolation
         if env is not None:
             params["env"] = env
         seat = await self._request("agent.hire", params)
@@ -424,6 +480,21 @@ class Conductor:
             )
         return await self._bridge.request(method, params)
 
+    async def _turn_request(
+        self, method: str, params: dict, agent_id: str, env_id: str
+    ) -> Any:
+        """A `_request` that tells the session watcher a turn is in flight for
+        ``agent_id`` — so a resident session that dies on startup (or mid-turn)
+        is warned about instead of the score hanging silently."""
+        watcher = self._session_watcher
+        if watcher is None or self._launcher != "resident":
+            return await self._request(method, params)
+        watcher.expect(agent_id, env_id)
+        try:
+            return await self._request(method, params)
+        finally:
+            watcher.unexpect(agent_id)
+
     async def _abort(self, method: str, token: str) -> None:
         try:
             await self._request(method, {"token": token})
@@ -493,7 +564,9 @@ class Agent:
         }
         if materials:
             params["materials"] = [m.to_payload() for m in materials]
-        raw = await self._conductor._request("agent.work", params)
+        raw = await self._conductor._turn_request(
+            "agent.work", params, self.id, self.env_id
+        )
         return Artifact.from_raw(raw)
 
     async def ask(
@@ -518,9 +591,11 @@ class Agent:
         value: Any = None
         last_error: Exception | None = None
         for _ in range(max(1, attempts)):
-            value = await self._conductor._request(
+            value = await self._conductor._turn_request(
                 "agent.ask",
                 {"agent": self.id, "env_id": self.env_id, "prompt": current},
+                self.id,
+                self.env_id,
             )
             if parse is None:
                 return value
@@ -540,20 +615,22 @@ class Agent:
 
     async def review(self, artifact: Artifact) -> Review:
         """Review a teammate's artifact (scoped read grant → posted review)."""
-        raw = await self._conductor._request(
+        raw = await self._conductor._turn_request(
             "agent.review",
             {
                 "reviewer": self.id,
                 "env_id": self.env_id,
                 "artifact": artifact.to_payload(),
             },
+            self.id,
+            self.env_id,
         )
         return Review.from_raw(raw)
 
     async def revise(self, artifact: Artifact, review: Review) -> Artifact:
         """Address a review and re-submit. Completes on any new submission —
         an agent that finds nothing to fix re-submits as-is."""
-        raw = await self._conductor._request(
+        raw = await self._conductor._turn_request(
             "agent.revise",
             {
                 "agent": self.id,
@@ -561,5 +638,7 @@ class Agent:
                 "artifact": artifact.to_payload(),
                 "review": review.to_payload(),
             },
+            self.id,
+            self.env_id,
         )
         return Artifact.from_raw(raw)
