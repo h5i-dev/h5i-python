@@ -285,6 +285,31 @@ async def test_client_launcher_error_propagates_to_server():
         await c.close()
 
 
+async def test_hire_isolation_run_default_and_override():
+    mock = MockOrchestra()
+    mock.on("agent.hire", lambda p: {"agent_id": p["name"], "env_id": "e"})
+    c = await launch_conductor(mock, isolation="supervised")
+    try:
+        await c.hire("a", runtime="claude")            # inherits the run tier
+        await c.hire("b", isolation="container")       # explicit override
+        await c.hire("c", isolation="auto")            # back to auto-picking
+        tiers = [p.get("isolation") for p in mock.calls_to("agent.hire")]
+        assert tiers == ["supervised", "container", "auto"]
+    finally:
+        await c.close()
+
+    # Without a run-level tier, hire sends nothing (server auto-picks).
+    mock = MockOrchestra()
+    mock.on("agent.hire", lambda p: {"agent_id": p["name"], "env_id": "e"})
+    c = await launch_conductor(mock)
+    try:
+        await c.hire("a")
+        (hire,) = mock.calls_to("agent.hire")
+        assert "isolation" not in hire
+    finally:
+        await c.close()
+
+
 async def test_misc_surface_marshaling():
     mock = MockOrchestra()
     mock.on("conductor.freeze", lambda p: {"id": "testrun", "phase": "sealed_submit"})

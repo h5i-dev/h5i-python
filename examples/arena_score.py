@@ -17,7 +17,7 @@ from h5i.orchestra import Conductor, patterns
 
 
 async def main(task: str) -> None:
-    async with Conductor(".", "arena-demo", launcher="resident") as c:
+    async with Conductor(".", "arena-demo", launcher="resident", isolation="supervised") as c:
         agents = await asyncio.gather(
             c.hire("claude", runtime="claude", model="claude-haiku-4-5"),
             c.hire("codex", runtime="codex", model="gpt-5.4-mini"),
@@ -25,7 +25,7 @@ async def main(task: str) -> None:
         )
         # LaunchResident starts each session on its first turn, so there is no
         # live session to check yet.  Still fail fast on repository hygiene.
-        await c.preflight(clean_worktree=True)
+        await c.preflight(clean_worktree=True, min_isolation="supervised")
 
         outcome = await patterns.arena(
             c,

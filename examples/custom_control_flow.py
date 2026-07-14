@@ -11,7 +11,7 @@ from h5i.orchestra import Conductor, Verdict, patterns
 
 
 async def main() -> None:
-    async with Conductor(".", "triage-and-fix") as c:
+    async with Conductor(".", "triage-and-fix", isolation="supervised") as c:
         lead = await c.hire(
             "lead", runtime="claude", model="claude-haiku-4-5"
         )

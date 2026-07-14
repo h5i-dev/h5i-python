@@ -19,7 +19,7 @@ QUESTION = (
 
 
 async def main() -> None:
-    async with Conductor(".", "debate-demo", launcher="resident") as c:
+    async with Conductor(".", "debate-demo", launcher="resident", isolation="supervised") as c:
         pro = await c.hire("pro", runtime="claude", model="claude-haiku-4-5")
         con = await c.hire("con", runtime="codex", model="gpt-5.4-mini")
         moderator = await c.hire(

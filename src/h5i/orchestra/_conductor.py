@@ -81,6 +81,12 @@ class Conductor:
       itself), or ``"client"`` (every turn is delivered to ``on_turn`` in
       *this* process — how tests script agents, and how a score can spawn
       its own runtimes). Passing ``on_turn`` implies ``"client"``.
+    - ``isolation``: the run's default sandbox tier for hired agents' envs
+      (``"workspace"``, ``"process"``, ``"supervised"``, ``"container"``, …).
+      Every :meth:`hire` inherits it unless it passes its own. An explicit
+      tier is fail-closed — hire errors if the host cannot enforce it, never
+      silently downgrades; ``None`` auto-picks per env, like
+      ``h5i env create``.
     - ``turn_timeout``/``poll_interval``: seconds (floats fine).
     - ``score_digest``: provenance digest recorded at launch. Defaults to the
       sha256 of ``sys.argv[0]``; pass ``None`` to record nothing, or your own
@@ -105,6 +111,7 @@ class Conductor:
         max_rounds: int | None = None,
         actor: str | None = None,
         launcher: str | None = None,
+        isolation: str | None = None,
         on_turn: OnTurn | None = None,
         poll_interval: float | None = None,
         turn_timeout: float | None = None,
@@ -125,6 +132,7 @@ class Conductor:
         self._max_rounds = max_rounds
         self._actor = actor
         self._launcher = "client" if on_turn is not None else (launcher or "attach")
+        self._isolation = isolation
         self._on_turn = on_turn
         self._poll_interval = poll_interval
         self._turn_timeout = turn_timeout
@@ -255,10 +263,21 @@ class Conductor:
         runtime: str | None = None,
         model: str | None = None,
         profile: str | None = None,
+        isolation: str | None = None,
         env: str | None = None,
     ) -> "Agent":
         """Hire an agent into the run: create (or bind ``env``) its sandboxed
-        env and enroll it on the roster. Journaled — a resume rebinds."""
+        env and enroll it on the roster. Journaled — a resume rebinds.
+
+        ``isolation`` requests a sandbox tier for the created env
+        (``"workspace"``, ``"process"``, ``"supervised"``, ``"container"``, …),
+        defaulting to the conductor's run-level ``isolation``. An explicit
+        tier is fail-closed — hire errors if the host cannot enforce it,
+        never silently downgrades; pass ``"auto"`` to override a run-level
+        tier back to auto-picking.
+        """
+        if isolation is None:
+            isolation = self._isolation
         params: dict[str, Any] = {"name": name}
         if runtime is not None:
             params["runtime"] = runtime
@@ -266,6 +285,8 @@ class Conductor:
             params["model"] = model
         if profile is not None:
             params["profile"] = profile
+        if isolation is not None:
+            params["isolation"] = isolation
         if env is not None:
             params["env"] = env
         seat = await self._request("agent.hire", params)

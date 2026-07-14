@@ -110,6 +110,14 @@ brings up tmux sessions itself), or `on_turn=my_callback` (every turn is
 delivered to your Python function — script deterministic agents in tests, or
 spawn your own runtimes).
 
+**Sandboxing.** `Conductor(..., isolation="supervised")` sets the run's
+default sandbox tier: every `hire` creates its env at that tier unless it
+passes its own (`isolation="container"`, or `"auto"` to re-enable
+auto-picking). Explicit tiers are fail-closed — hire errors if the host
+cannot enforce them, never silently downgrades — and
+`preflight(min_isolation=...)` verifies the floor across the whole roster,
+which also catches a *resumed* run whose envs were created at a weaker tier.
+
 **Watching resident sessions.** With `launcher="resident"` the score also
 auto-opens a viewer on each agent's tmux session as it comes up — a window
 linked into your current tmux session, a Windows Terminal tab under WSL, or a

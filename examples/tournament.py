@@ -27,7 +27,7 @@ SEEDS = [
 
 async def match(run_id: str, contenders: list[tuple[str, str, str | None]]) -> tuple[str, str, str | None]:
     """One arena run; returns the winning seed."""
-    async with Conductor(".", run_id, launcher="resident") as c:
+    async with Conductor(".", run_id, launcher="resident", isolation="supervised") as c:
         agents = {
             name: await c.hire(name, runtime=runtime, model=model)
             for name, runtime, model in contenders

@@ -17,7 +17,7 @@ mid-turn (with the `h5i env shell … -- true` command to diagnose why). Pass
 
 ## Running the examples
 
-You need four things:
+You need five things:
 
 1. **The SDK** — from the repo root: `pip install -e .` (Python ≥ 3.10).
 2. **The engine** — the `h5i` binary on `PATH` (`cargo install --path <h5i repo>`),
@@ -29,6 +29,14 @@ You need four things:
    the repository the agents should modify, with a **clean worktree** (the
    arena and ensemble scores call `preflight(clean_worktree=True)` and fail
    fast otherwise).
+5. **A host that can enforce the `supervised` sandbox tier** — every example
+   pins `isolation="supervised"` on the `Conductor`, so hired agents run in
+   supervised envs (seccomp-gated, network-jailed) rather than whatever tier
+   the host happens to auto-pick. The tier is fail-closed: on a host that
+   cannot enforce it, hire errors instead of silently downgrading — drop the
+   `isolation=` argument (or set `"auto"`) to fall back to auto-picking.
+   Note: a *resumed* run keeps the envs it was created with; changing the
+   tier (like changing a model) needs a fresh run id.
 
 `preflight(live=...)` is intended for the default `"attach"` launcher, where
 sessions must already be parked on their inboxes. Do not use that check before

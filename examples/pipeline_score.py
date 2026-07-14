@@ -17,7 +17,7 @@ FEATURE = "add `--json` output to `h5i vibe`"
 
 
 async def main() -> None:
-    async with Conductor(".", "pipeline-demo", launcher="resident") as c:
+    async with Conductor(".", "pipeline-demo", launcher="resident", isolation="supervised") as c:
         architect = await c.hire(
             "architect", runtime="claude", model="claude-haiku-4-5"
         )
