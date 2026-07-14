@@ -6,13 +6,15 @@ run continues where it stopped. Resident agent sessions are expected to be
 attached (bring them up with `launcher="resident"` to let the score spawn
 tmux sessions itself).
 
-    python examples/ensemble_score.py "implement `h5i pull` mirroring `h5i push`"
+    python examples/ensemble_score.py ["<task>"]   # default: implement quicksort with pytest
 """
 
 import asyncio
 import sys
 
 from h5i.orchestra import Conductor
+
+DEMO_TASK = "implement quicksort with pytest"
 
 
 async def main(task: str) -> None:
@@ -45,8 +47,8 @@ async def main(task: str) -> None:
 
         # Neutral verification in fresh sandboxed worktrees (never the
         # author's box), then the built-in verdict rule.
-        await c.verify(a, ["cargo", "test", "--quiet"])
-        await c.verify(b, ["cargo", "test", "--quiet"])
+        await c.verify(a, ["pytest", "-q"])
+        await c.verify(b, ["pytest", "-q"])
         verdict = await c.judge()
 
         print(await c.trace())
@@ -68,4 +70,4 @@ async def main(task: str) -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main(sys.argv[1] if len(sys.argv) > 1 else "demo task"))
+    asyncio.run(main(sys.argv[1] if len(sys.argv) > 1 else DEMO_TASK))

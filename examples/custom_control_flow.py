@@ -3,14 +3,19 @@
 This score shows the pieces no manifest could express: data turns feeding
 `if`, a journaled fan-out over a dynamic work list, a custom (LLM-assisted)
 verdict policy, and a mid-run score migration marker.
+
+    python examples/custom_control_flow.py ["<task>"]   # default: implement quicksort with pytest
 """
 
 import asyncio
+import sys
 
 from h5i.orchestra import Conductor, Verdict, patterns
 
+DEMO_TASK = "implement quicksort with pytest"
 
-async def main() -> None:
+
+async def main(task: str) -> None:
     async with Conductor(".", "triage-and-fix", isolation="supervised") as c:
         lead = await c.hire(
             "lead", runtime="claude", model="claude-haiku-4-5"
@@ -25,26 +30,26 @@ async def main() -> None:
         # A data turn: the agent replies with JSON, not code. The reply is
         # journaled — on resume this list comes back without re-asking.
         hotspots: list = await lead.ask(
-            "List up to 4 modules with failing or flaky tests as a JSON "
-            'array: [{"path": "...", "symptom": "..."}]',
+            f"We want to: {task}. Break it into at most 4 independent "
+            'subtasks as a JSON array: [{"item": "...", "detail": "..."}]',
             parse=lambda v: list(v),
         )
         if not hotspots:
-            print("nothing to fix")
+            print("nothing to do")
             return
 
         # Journal any host-side effect exactly-once; distinct labels for
         # parallel loops come from scopes.
         for i, spot in enumerate(hotspots):
             await c.scope(f"triage/{i}").step(
-                "log", lambda spot=spot: f"queued {spot['path']}"
+                "log", lambda spot=spot: f"queued {spot['item']}"
             )
 
         # Dynamic fan-out: assignments follow the data, round-robin.
         outcome = await patterns.map_reduce(
             c,
             [
-                (crew[i % len(crew)], f"fix `{s['path']}`: {s['symptom']}")
+                (crew[i % len(crew)], f"{s['item']}: {s['detail']} (part of: {task})")
                 for i, s in enumerate(hotspots)
             ],
             reduce=(lead, "merge every fix into one coherent candidate"),
@@ -82,4 +87,4 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main(sys.argv[1] if len(sys.argv) > 1 else DEMO_TASK))

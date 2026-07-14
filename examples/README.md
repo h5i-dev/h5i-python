@@ -43,18 +43,14 @@ sessions must already be parked on their inboxes. Do not use that check before
 the first turn with `launcher="resident"`: resident sessions are started lazily
 when a turn is dispatched.
 
-Then run any example as a plain Python script. Three take the task as an
-optional CLI argument (falling back to a demo task):
+Then run any example as a plain Python script. Every example takes the task
+as an optional CLI argument and falls back to the same demo task,
+**`implement quicksort with pytest`** — so a bare invocation always works:
 
 ```bash
-python examples/ensemble_score.py    "implement quicksort"
-python examples/arena_score.py       "implement quicksort"
-python examples/review_escalation.py "implement quicksort"
-```
-
-The rest are self-contained — the task is written into the score:
-
-```bash
+python examples/ensemble_score.py                          # demo task
+python examples/arena_score.py       "implement quicksort with pytest"
+python examples/review_escalation.py "fix the flaky msg_integration test"
 python examples/pipeline_score.py
 python examples/judge_panel_score.py
 python examples/debate_then_build.py
@@ -62,6 +58,11 @@ python examples/tournament.py
 python examples/custom_control_flow.py   # uses the default "attach" launcher:
                                          # park resident sessions yourself first
 ```
+
+To match the demo task, the scores verify candidates with `pytest -q` — the
+quicksort submissions carry their own tests. If you pass a task from another
+ecosystem, change the `verify` command in the score too (e.g. back to
+`["cargo", "test", "--quiet"]`).
 
 Every example pins inexpensive models instead of inheriting a potentially
 costly CLI default: Claude seats use `claude-haiku-4-5` and Codex seats use

@@ -7,13 +7,15 @@ verifier command runs against every candidate, and the built-in policy picks
 the smallest green diff. The compare rows are the same arena view
 `h5i team compare` renders.
 
-    python examples/arena_score.py "make `h5i doctor` exit non-zero on repair failures"
+    python examples/arena_score.py ["<task>"]   # default: implement quicksort with pytest
 """
 
 import asyncio
 import sys
 
 from h5i.orchestra import Conductor, patterns
+
+DEMO_TASK = "implement quicksort with pytest"
 
 
 async def main(task: str) -> None:
@@ -31,7 +33,7 @@ async def main(task: str) -> None:
             c,
             task,
             agents,
-            verify=["cargo", "test", "--quiet"],
+            verify=["pytest", "-q"],
             isolation="process",
         )
 
@@ -54,4 +56,4 @@ async def main(task: str) -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main(sys.argv[1] if len(sys.argv) > 1 else "demo task"))
+    asyncio.run(main(sys.argv[1] if len(sys.argv) > 1 else DEMO_TASK))

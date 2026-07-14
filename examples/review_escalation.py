@@ -6,7 +6,7 @@ This is `if`/`for` doing what a workflow language would need three node types
 for. Both seats are hired up front (enrollment is open-round-only), so the
 escalation path exists from the start whether or not it's taken.
 
-    python examples/review_escalation.py "fix the flaky msg_integration test"
+    python examples/review_escalation.py ["<task>"]   # default: implement quicksort with pytest
 """
 
 import asyncio
@@ -14,6 +14,7 @@ import sys
 
 from h5i.orchestra import Conductor
 
+DEMO_TASK = "implement quicksort with pytest"
 MAX_REVISE_CYCLES = 2
 
 
@@ -51,7 +52,7 @@ async def main(task: str) -> None:
                 materials=[artifact],
             )
 
-        verification = await c.verify(artifact, ["cargo", "test", "--quiet"])
+        verification = await c.verify(artifact, ["pytest", "-q"])
         print(
             f"final candidate by {artifact.owner_agent}: "
             f"tests_passed={verification.tests_passed}"
@@ -59,4 +60,4 @@ async def main(task: str) -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main(sys.argv[1] if len(sys.argv) > 1 else "demo task"))
+    asyncio.run(main(sys.argv[1] if len(sys.argv) > 1 else DEMO_TASK))
