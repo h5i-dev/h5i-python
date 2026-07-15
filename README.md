@@ -124,10 +124,7 @@ linked into your current tmux session, a Windows Terminal tab under WSL, or a
 new GUI terminal — so you never hunt for `tmux attach -t …` by hand. Headless
 environments just get the attach command printed. Tune it with
 `watch="wezterm start -- tmux attach -t {session}"` (or `$H5I_TERMINAL`), or
-turn it off with `watch=False`. Prefer one tab over one-per-agent? Pass
-`watch_layout="split"` to collect every agent as a vertically stacked pane of
-a single shared viewer session (`split-h` for side-by-side); the default
-`"windows"` keeps a surface per agent.
+turn it off with `watch=False`.
 
 **Discipline the journal asks of you** (same as the Rust eDSL): steps that run
 concurrently need distinct labels (`c.scope(f"item/{i}").step("fetch", …)` in

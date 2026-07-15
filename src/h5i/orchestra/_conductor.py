@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Any, Awaitable, Callable, Iterable, Sequence
 
 from . import policy as _policy
-from ._watch import SessionWatcher, normalize_layout
+from ._watch import SessionWatcher
 from ._errors import BridgeClosedError, OrchestraError, ProtocolError
 from ._rpc import Bridge, resolve_h5i_bin
 from ._types import (
@@ -99,11 +99,6 @@ class Conductor:
       ``watch="kitty -e tmux attach -t {session}"``. Defaults to on for
       ``launcher="resident"`` (set ``watch=False`` to silence); viewer
       failures never fail the score — they degrade to a printed attach hint.
-    - ``watch_layout``: how watched agents are laid out. ``"windows"``
-      (default) opens one surface per agent — a linked tmux window, terminal
-      tab, or GUI window each. ``"split"``/``"split-v"`` instead stacks all
-      agents as vertically split panes of one shared viewer tmux session
-      (one tab total); ``"split-h"`` splits side by side.
     """
 
     def __init__(
@@ -123,7 +118,6 @@ class Conductor:
         score_digest: Any = _AUTO,
         h5i_bin: str | None = None,
         watch: bool | str | None = None,
-        watch_layout: str | None = None,
     ):
         if not run:
             raise TypeError("Conductor(...) requires a run id: Conductor(repo, run)")
@@ -145,7 +139,6 @@ class Conductor:
         self._score_digest = score_digest
         self._h5i_bin = h5i_bin
         self._watch = self._launcher == "resident" if watch is None else watch
-        self._watch_layout = normalize_layout(watch_layout)  # fail fast, pre-launch
         self._watch_task: asyncio.Task | None = None
         self._session_watcher: SessionWatcher | None = None
         self._bridge: Bridge | None = None
@@ -228,7 +221,6 @@ class Conductor:
             self._session_watcher = SessionWatcher(
                 self._run_id,
                 template=self._watch if isinstance(self._watch, str) else None,
-                layout=self._watch_layout,
             )
             self._watch_task = asyncio.ensure_future(self._session_watcher.run())
         return self

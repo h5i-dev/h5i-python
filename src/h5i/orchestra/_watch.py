@@ -23,15 +23,6 @@ How a viewer is opened, in order of preference:
 
 A broken viewer never fails the score — every opener error degrades to the
 stderr hint.
-
-**Layouts.** By default every agent gets its own surface (window / tab /
-terminal). ``layout="split"`` instead collects all agents as panes of one
-shared *viewer* tmux session (``h5i-view-<run>``): each agent pane runs a
-nested ``tmux attach`` on that agent's session, and the opener is invoked
-once, on the viewer. ``"split"``/``"split-v"`` stacks panes top-to-bottom
-(tmux ``even-vertical``); ``"split-h"`` places them side by side. The viewer
-session cleans itself up — a pane's nested client exits when its agent
-session ends, and the viewer dies with its last pane.
 """
 
 from __future__ import annotations
@@ -43,42 +34,13 @@ import shutil
 import sys
 from typing import Any, Callable, Mapping, NamedTuple
 
-__all__ = [
-    "Opener",
-    "SessionWatcher",
-    "normalize_layout",
-    "resolve_opener",
-    "session_prefix",
-    "viewer_session",
-]
-
-#: Watch layouts: one surface per agent, or one shared window of panes.
-_LAYOUTS = ("windows", "split-v", "split-h")
+__all__ = ["Opener", "SessionWatcher", "resolve_opener", "session_prefix"]
 
 
 def session_prefix(run_id: str) -> str:
     """The resident launcher's session-name prefix for a run (mirrors the
     Rust side's ``h5i-orch-{run_id}-{agent_id}``)."""
     return f"h5i-orch-{run_id}-"
-
-
-def viewer_session(run_id: str) -> str:
-    """The shared viewer session split layouts collect agent panes into."""
-    return f"h5i-view-{run_id}"
-
-
-def normalize_layout(layout: str | None) -> str:
-    """Validate a watch layout, mapping the ``"split"`` shorthand to
-    ``"split-v"`` (stacked panes, tmux ``even-vertical``)."""
-    layout = layout or "windows"
-    if layout == "split":
-        layout = "split-v"
-    if layout not in _LAYOUTS:
-        raise ValueError(
-            f"unknown watch layout {layout!r} — expected one of "
-            f"{', '.join((*_LAYOUTS, 'split'))}"
-        )
-    return layout
 
 
 def _attach_argv(session: str) -> list[str]:
@@ -157,7 +119,6 @@ class SessionWatcher:
         *,
         template: str | None = None,
         opener: Opener | None = None,
-        layout: str | None = None,
         poll_interval: float = 1.0,
         grace: float = 15.0,
         spawn_gap: float = 0.5,
@@ -165,9 +126,6 @@ class SessionWatcher:
     ):
         self._prefix = session_prefix(run_id)
         self._opener = opener or resolve_opener(template)
-        self._layout = normalize_layout(layout)
-        self._viewer = viewer_session(run_id)
-        self._viewer_opened = False
         self._poll_interval = poll_interval
         self._grace = grace
         self._spawn_gap = spawn_gap
@@ -278,9 +236,6 @@ class SessionWatcher:
         return out.decode(errors="replace").splitlines()
 
     async def _open(self, session: str) -> None:
-        if self._layout != "windows":
-            await self._open_pane(session)
-            return
         opener = self._opener
         agent = self._agent(session)
         try:
@@ -308,99 +263,6 @@ class SessionWatcher:
         self._echo(
             f"[h5i] agent '{agent}' session up — view it with: tmux attach -t {session}"
         )
-
-    # ── split layout: all agents as panes of one viewer session ─────────────
-
-    async def _open_pane(self, session: str) -> None:
-        """Add ``session`` as a pane of the shared viewer session (creating
-        the viewer on the first agent), then surface the viewer once."""
-        agent = self._agent(session)
-        # TMUX must be cleared or tmux refuses to nest the attach client.
-        attach = f"TMUX= exec tmux attach-session -t {shlex.quote(session)}"
-        try:
-            exists, _ = await self._tmux("has-session", "-t", f"={self._viewer}")
-            if exists != 0:
-                # Detached sessions default to 80x24 — too small to keep
-                # splitting before a human attaches. Start roomy; the first
-                # real client resizes it.
-                await self._tmux_ok(
-                    "new-session", "-d", "-s", self._viewer,
-                    "-x", "220", "-y", "120", attach,
-                )
-            elif not await self._has_pane(session):
-                flag = "-v" if self._layout == "split-v" else "-h"
-                even = "even-vertical" if self._layout == "split-v" else "even-horizontal"
-                await self._tmux_ok(
-                    "split-window", "-d", flag, "-t", f"{self._viewer}:", attach
-                )
-                await self._tmux("select-layout", "-t", f"{self._viewer}:", even)
-        except Exception as e:  # a broken viewer must not fail the score
-            self._echo(
-                f"[h5i] agent '{agent}' session up, but adding its viewer pane "
-                f"failed ({e}) — attach with: tmux attach -t {session}"
-            )
-            return
-        self._echo(
-            f"[h5i] agent '{agent}' session up — pane added to viewer "
-            f"'{self._viewer}'"
-        )
-        await self._open_viewer_once()
-
-    async def _has_pane(self, session: str) -> bool:
-        """Does the viewer already hold a pane attached to ``session``?
-        (Survives score resumes without duplicating panes.)"""
-        code, out = await self._tmux(
-            "list-panes", "-t", f"{self._viewer}:", "-F", "#{pane_start_command}"
-        )
-        needle = f"attach-session -t {shlex.quote(session)}"
-        return code == 0 and any(needle in line for line in out.splitlines())
-
-    async def _open_viewer_once(self) -> None:
-        """Surface the shared viewer session through the opener — once."""
-        if self._viewer_opened:
-            return
-        self._viewer_opened = True
-        opener = self._opener
-        try:
-            if opener.kind == "spawn":
-                await self._spawn(opener.argv(self._viewer))
-                self._echo(
-                    f"[h5i] viewer '{self._viewer}' opened in {opener.name} "
-                    f"(or: tmux attach -t {self._viewer})"
-                )
-                return
-            if opener.kind == "tmux-link":
-                await self._link_window(self._viewer)
-                self._echo(
-                    f"[h5i] viewer '{self._viewer}' linked as a window in "
-                    f"your current tmux session"
-                )
-                return
-        except Exception as e:
-            self._echo(
-                f"[h5i] viewer failed to open ({e}) — attach with: "
-                f"tmux attach -t {self._viewer}"
-            )
-            return
-        self._echo(
-            f"[h5i] agents share one window — attach with: tmux attach -t {self._viewer}"
-        )
-
-    async def _tmux(self, *args: str) -> tuple[int, str]:
-        """Run a tmux subcommand, returning (exit code, stdout)."""
-        proc = await asyncio.create_subprocess_exec(
-            "tmux",
-            *args,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.DEVNULL,
-        )
-        out, _ = await proc.communicate()
-        return proc.returncode or 0, out.decode(errors="replace")
-
-    async def _tmux_ok(self, *args: str) -> None:
-        code, _ = await self._tmux(*args)
-        if code != 0:
-            raise RuntimeError(f"tmux {args[0]} exited with status {code}")
 
     async def _spawn(self, argv: list[str]) -> None:
         proc = await asyncio.create_subprocess_exec(
