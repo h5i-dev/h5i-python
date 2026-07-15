@@ -58,6 +58,13 @@ async def main(task: str) -> None:
             f"tests_passed={verification.tests_passed}"
         )
 
+        # Record a verdict so the run ends finalized and apply is one command.
+        verdict = await c.judge()
+        if verdict.selected_submission:
+            print("apply it with: h5i team apply escalation-demo")
+        else:
+            print("no verdict:", *verdict.reasons)
+
 
 if __name__ == "__main__":
     asyncio.run(main(sys.argv[1] if len(sys.argv) > 1 else DEMO_TASK))

@@ -62,6 +62,17 @@ async def main(task: str) -> None:
         await c.note("debate risks: " + "; ".join(risks))
         print("built:", artifact.id, "| risks recorded to the event log")
 
+        # Verify + judge so the run ends finalized: the sole submission gets
+        # neutral verifier evidence and the built-in rule records a verdict,
+        # leaving `h5i team apply` a one-liner for the human.
+        await c.verify(artifact, ["pytest", "-q"])
+        verdict = await c.judge()
+        if verdict.selected_submission:
+            print("verdict:", verdict.selected_submission, "—", *verdict.reasons)
+            print("apply it with: h5i team apply debate-demo")
+        else:
+            print("no verdict:", *verdict.reasons)
+
 
 if __name__ == "__main__":
     asyncio.run(main(sys.argv[1] if len(sys.argv) > 1 else DEMO_TASK))
