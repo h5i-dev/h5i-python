@@ -8,9 +8,11 @@ from h5i.orchestra._conductor import Conductor
 from h5i.orchestra._watch import (
     Opener,
     SessionWatcher,
+    normalize_layout,
     resolve_opener,
     session_prefix,
     template_argv,
+    viewer_session,
     wt_argv,
 )
 
@@ -191,6 +193,111 @@ async def test_broken_viewer_degrades_to_hint():
     assert any(f"tmux attach -t {session}" in line for line in w.echoed)
 
 
+# ── split layout: one shared viewer session ──────────────────────────────────
+
+
+def test_layout_normalization():
+    assert normalize_layout(None) == "windows"
+    assert normalize_layout("split") == "split-v"
+    assert normalize_layout("split-h") == "split-h"
+    with pytest.raises(ValueError, match="unknown watch layout"):
+        normalize_layout("tiled")
+
+
+class SplitWatcher(ScriptedWatcher):
+    """Split-layout watcher over a fake tmux server — no subprocesses."""
+
+    def __init__(self, run_id, listings, **kwargs):
+        kwargs.setdefault("layout", "split")
+        super().__init__(run_id, listings, **kwargs)
+        self.tmux_calls: list[tuple[str, ...]] = []
+        self.viewer_exists = False
+        self.panes: list[str] = []
+
+    async def _tmux(self, *args):
+        self.tmux_calls.append(args)
+        if args[0] == "has-session":
+            return (0 if self.viewer_exists else 1), ""
+        if args[0] == "new-session":
+            self.viewer_exists = True
+            self.panes.append(args[-1])
+            return 0, ""
+        if args[0] == "split-window":
+            self.panes.append(args[-1])
+            return 0, ""
+        if args[0] == "list-panes":
+            return 0, "\n".join(self.panes)
+        return 0, ""
+
+    def calls(self, subcommand):
+        return [c for c in self.tmux_calls if c[0] == subcommand]
+
+
+@pytest.mark.asyncio
+async def test_split_collects_agents_into_one_viewer():
+    prefix = session_prefix("run1")
+    view = viewer_session("run1")
+    w = SplitWatcher(
+        "run1",
+        [[f"{prefix}claude"], [f"{prefix}claude", f"{prefix}codex"]],
+    )
+    for _ in range(2):
+        assert await w.poll_once()
+    # First agent creates the viewer; the second splits it and evens the layout.
+    assert len(w.calls("new-session")) == 1
+    assert w.calls("new-session")[0][3] == view
+    splits = w.calls("split-window")
+    assert len(splits) == 1 and "-v" in splits[0]
+    assert w.calls("select-layout")[0][-1] == "even-vertical"
+    # Both panes nest an attach on the agent sessions, with TMUX cleared.
+    assert w.panes == [
+        f"TMUX= exec tmux attach-session -t {prefix}claude",
+        f"TMUX= exec tmux attach-session -t {prefix}codex",
+    ]
+    # The opener surfaced the viewer session exactly once.
+    assert w.opened == [view]
+
+
+@pytest.mark.asyncio
+async def test_split_h_splits_side_by_side():
+    prefix = session_prefix("run1")
+    w = SplitWatcher(
+        "run1",
+        [[f"{prefix}a", f"{prefix}b"]],
+        layout="split-h",
+    )
+    await w.poll_once()
+    assert "-h" in w.calls("split-window")[0]
+    assert w.calls("select-layout")[0][-1] == "even-horizontal"
+
+
+@pytest.mark.asyncio
+async def test_split_resume_does_not_duplicate_panes():
+    prefix = session_prefix("run1")
+    w = SplitWatcher("run1", [[f"{prefix}claude"]])
+    # A previous score already built the viewer with this agent's pane.
+    w.viewer_exists = True
+    w.panes = [f"TMUX= exec tmux attach-session -t {prefix}claude"]
+    await w.poll_once()
+    assert not w.calls("split-window")
+    assert not w.calls("new-session")
+    assert len(w.panes) == 1
+
+
+@pytest.mark.asyncio
+async def test_split_tmux_failure_degrades_to_hint():
+    session = session_prefix("run1") + "claude"
+
+    class Broken(SplitWatcher):
+        async def _tmux(self, *args):
+            return 1, ""
+
+    w = Broken("run1", [[session]])
+    assert await w.poll_once()
+    assert any(f"tmux attach -t {session}" in line for line in w.echoed)
+    assert w.opened == []
+
+
 # ── pending-turn warnings ────────────────────────────────────────────────────
 
 
@@ -289,6 +396,14 @@ def test_watch_defaults_follow_the_launcher():
     assert Conductor(".", "r", launcher="resident", watch=False)._watch is False
     c = Conductor(".", "r", watch="kitty -e tmux attach -t {session}")
     assert c._watch == "kitty -e tmux attach -t {session}"
+
+
+def test_watch_layout_is_normalized_and_validated_up_front():
+    assert Conductor(".", "r")._watch_layout == "windows"
+    assert Conductor(".", "r", watch_layout="split")._watch_layout == "split-v"
+    assert Conductor(".", "r", watch_layout="split-h")._watch_layout == "split-h"
+    with pytest.raises(ValueError, match="unknown watch layout"):
+        Conductor(".", "r", watch_layout="mosaic")
 
 
 @pytest.mark.asyncio
