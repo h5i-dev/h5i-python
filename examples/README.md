@@ -102,8 +102,8 @@ pattern almost fits, copy it into your score and edit it.
 
 ## Paper scores
 
-[`papers/`](papers/README.md) holds reference implementations of twenty
+[`papers/`](papers/README.md) holds reference implementations of forty
 published multi-agent workflows — Self-Refine, Reflexion, Tree of Thoughts,
-Mixture-of-Agents, MetaGPT, ChatDev, and more — each paper's core loop
-expressed as an ordinary score over the same public SDK. Same prerequisites
+Mixture-of-Agents, MetaGPT, ChatDev, LATS, AgentVerse, and more — each
+paper's core loop expressed as an ordinary score over the same public SDK. Same prerequisites
 as above; see that README for the map from paper to primitives.
