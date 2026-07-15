@@ -1,4 +1,4 @@
-# h5i-python: Python SDK for Programmable Multi-Agent Orchestration
+# h5i-python: Programmable Multi-Agent Orchestration
 
   <a href="https://github.com/h5i-dev/h5i-python/actions/workflows/test.yaml"><img alt="tests" src="https://github.com/h5i-dev/h5i-python/actions/workflows/test.yaml/badge.svg"></a>
   <a href="https://github.com/h5i-dev/h5i-python/blob/main/LICENSE"><img alt="Apache-2.0" src="https://img.shields.io/github/license/h5i-dev/h5i-python?color=blue"></a>
