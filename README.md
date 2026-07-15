@@ -65,6 +65,10 @@ python ensemble.py
 
 With the default `launcher="resident"`, `h5i` automatically starts the agent sessions through `tmux`.
 
+<p align="center">
+  <img src="./assets/h5i-python-short.gif" width="95%">
+</p>
+
 ## Examples
 
 For example, you can program:
