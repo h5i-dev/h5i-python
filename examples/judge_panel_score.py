@@ -54,6 +54,9 @@ async def main(task: str) -> None:
                 )
         print("panel verdict:", outcome.verdict.selected_submission,
               "—", *outcome.verdict.reasons)
+        if outcome.verdict.selected_submission:
+            # Advisory verdict — never auto-applies, so applying takes --force.
+            print("apply it with: h5i team apply panel-demo --force")
 
 
 if __name__ == "__main__":
