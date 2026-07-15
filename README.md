@@ -9,7 +9,7 @@ Claude Code, Codex, and other coding agents have different strengths. However, n
 - how the winner is selected; and
 - when the selected change is applied to the original branch.
 
-`h5i-python` is the Python SDK for the [h5i](https://github.com/h5i-dev/h5i) orchestra engine. This SDK lets you define and execute multi-agent coding workflows across Claude Code, Codex, and other runtimes as ordinary Python programs.
+h5i-python is the Python SDK for the [h5i](https://github.com/h5i-dev/h5i) orchestra engine. This SDK lets you define and execute multi-agent coding workflows across Claude Code, Codex, and other runtimes as ordinary Python programs.
 
 Each agent works inside its own sandboxed Git worktree, so it cannot overwrite the original checkout or another agent's work. Agent turns produce Git-backed artifacts that can be reviewed, revised, neutrally verified, compared, selected, and applied as one auditable workflow.
 
