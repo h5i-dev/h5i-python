@@ -1,7 +1,23 @@
 """Prebuilt orchestrations, implemented in the public SDK — readable,
 forkable, no privileged API. Each is a faithful port of the Rust
-``h5i_orchestra::patterns`` module: if one doesn't fit, copy its ~40 lines
-into your score and edit — that is the intended workflow, not a plugin API.
+``h5i_orchestra::patterns`` module, built only from the public primitives
+in one shared shape: attempt → ``freeze`` → interact (review / revise /
+ask) → ``verify`` → ``judge``.
+
+Three ways to make one your own, cheapest first:
+
+- **Parameterize** — the conventions are injectable where that is cheap:
+  ``ensemble(..., approve=…)`` swaps the approval predicate,
+  ``judge_panel(..., aggregate=…)`` swaps the ballot aggregation, and every
+  ``judge=`` kwarg accepts any :data:`~h5i.orchestra.policy.Policy` callable.
+- **Compose** — the pieces the patterns are assembled from are public:
+  `merge_reviews`, `review_cycle`, `verify_and_judge`,
+  `ask_with_valid_citations`, `render_evidence`, `mean_score_verdict`,
+  `smaller_diff`. A custom pattern is an ordinary async function over these
+  (``examples/quorum_ensemble.py`` builds one from scratch).
+- **Fork** — if the control flow itself doesn't fit, copy the pattern's ~40
+  lines into your score and edit. There is deliberately no plugin API to
+  learn; patterns are user-space code.
 
 Roster note: every agent a pattern uses must be hired before the round is
 sealed — hire integrators/moderators up front, alongside the workers.
@@ -12,7 +28,7 @@ from __future__ import annotations
 import asyncio
 import sys
 from dataclasses import dataclass
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 from ._conductor import Agent, Conductor
 from ._errors import AskParseError, OrchestraError
@@ -21,6 +37,16 @@ from .policy import Policy, tests_then_smallest_diff
 
 __all__ = [
     "approves",
+    # composition helpers
+    "merge_reviews",
+    "review_cycle",
+    "ReviewCycleOutcome",
+    "verify_and_judge",
+    "ask_with_valid_citations",
+    "render_evidence",
+    "mean_score_verdict",
+    "smaller_diff",
+    # patterns
     "ensemble",
     "EnsembleOutcome",
     "integrate",
@@ -43,6 +69,102 @@ def approves(review: Review) -> bool:
     """Approval convention applied to a review (``APPROVE``/``LGTM``/…,
     optionally behind a ``Verdict:`` label, leading the first line)."""
     return approves_text(review.body)
+
+
+# ── composition helpers ───────────────────────────────────────────────────────
+#
+# The pieces the prebuilt patterns are assembled from — public, so a custom
+# pattern composes them instead of forking a whole pattern.
+
+
+def merge_reviews(received: Sequence[Review], target: Artifact) -> Review:
+    """Fold several reviews of one artifact into a single review, so feedback
+    from many reviewers costs the author one revise turn. Each reviewer's
+    feedback is tagged ``[reviewer]`` in the merged body; the merged review
+    references the reviewed artifact."""
+    if not received:
+        raise ValueError("merge_reviews needs at least one review")
+    return Review(
+        reviewer="+".join(r.reviewer for r in received),
+        target=target.owner_agent,
+        round=received[0].round,
+        body="\n\n".join(f"[{r.reviewer}]\n{r.body}" for r in received),
+        referenced_artifacts=(target.id,),
+    )
+
+
+@dataclass
+class ReviewCycleOutcome:
+    #: every review posted this cycle, in (reviewer, target) pair order
+    reviews: list[Review]
+    #: latest artifact per agent id after the cycle (revisions applied)
+    artifacts: dict[str, Artifact]
+    #: ids of the agents that revised this cycle, in roster order
+    revised: tuple[str, ...]
+
+
+async def review_cycle(
+    agents: Sequence[Agent],
+    latest: Mapping[str, Artifact],
+    *,
+    approve: Callable[[Review], bool] = approves,
+) -> ReviewCycleOutcome:
+    """One mutual review → revise cycle over ``latest`` (artifact per agent
+    id): every ordered (reviewer, target) pair reviews in parallel, then
+    every author whose received reviews are not unanimously approved — per
+    ``approve`` — revises once against the merged feedback. Returns updated
+    artifacts without mutating ``latest``. For a quorum other than unanimity,
+    write the loop yourself on `merge_reviews` — it is a few lines (see
+    ``examples/quorum_ensemble.py``)."""
+    pairs = [
+        (reviewer, target)
+        for reviewer in agents
+        for target in agents
+        if reviewer.id != target.id
+    ]
+    cycle = await asyncio.gather(
+        *(reviewer.review(latest[target.id]) for reviewer, target in pairs)
+    )
+    revising: list[tuple[Agent, Review]] = []
+    for agent in agents:
+        received = [r for r in cycle if r.target == agent.id]
+        if all(approve(r) for r in received):
+            continue
+        revising.append((agent, merge_reviews(received, latest[agent.id])))
+    revised = await asyncio.gather(
+        *(agent.revise(latest[agent.id], merged) for agent, merged in revising)
+    )
+    artifacts = dict(latest)
+    for (agent, _), artifact in zip(revising, revised):
+        artifacts[agent.id] = artifact
+    return ReviewCycleOutcome(
+        reviews=list(cycle),
+        artifacts=artifacts,
+        revised=tuple(agent.id for agent, _ in revising),
+    )
+
+
+async def verify_and_judge(
+    c: Conductor,
+    artifacts: Sequence[Artifact],
+    *,
+    verify: Sequence[str] | None = None,
+    isolation: str | None = None,
+    judge: Policy | None = None,
+) -> Verdict | None:
+    """The shared pattern tail: neutrally verify each artifact — one at a
+    time, verify worktrees share on-disk state and parallel creation is racy
+    — then record a verdict. An explicit ``judge`` always wins; otherwise,
+    when a verifier ran, the CLI's finalize rule (`tests_then_smallest_diff`)
+    applies; with neither, nothing is recorded and ``None`` comes back."""
+    if verify is not None:
+        for artifact in artifacts:
+            await c.verify(artifact, verify, isolation=isolation)
+    if judge is not None:
+        return await c.judge(judge)
+    if verify is not None:
+        return await c.judge(tests_then_smallest_diff)
+    return None
 
 
 # ── ensemble ──────────────────────────────────────────────────────────────────
@@ -69,11 +191,14 @@ async def ensemble(
     verify: Sequence[str] | None = None,
     isolation: str | None = None,
     judge: Policy | None = None,
+    approve: Callable[[Review], bool] = approves,
 ) -> EnsembleOutcome:
     """The classic ensemble: every agent attempts ``task`` independently, the
     round is sealed, agents mutually review and revise for up to ``rounds``
     cycles, then (optionally) a neutral verifier runs and a policy decides.
-    Apply is never automatic — inspect the outcome and apply yourself."""
+    Apply is never automatic — inspect the outcome and apply yourself.
+    ``approve`` swaps the per-review approval convention (default:
+    `approves`, the ``APPROVE``/``LGTM`` first-line rule)."""
     if len(agents) < 2:
         raise ValueError("ensemble needs at least two agents")
 
@@ -94,53 +219,16 @@ async def ensemble(
     rounds_run = 0
     for _ in range(rounds):
         rounds_run += 1
-        # Every ordered (reviewer, target) pair, in parallel.
-        pairs = [
-            (reviewer, target)
-            for reviewer in agents
-            for target in agents
-            if reviewer.id != target.id
-        ]
-        cycle = await asyncio.gather(
-            *(reviewer.review(latest[target.id]) for reviewer, target in pairs)
-        )
-
-        # Revise every artifact that a reviewer did not approve; feedback from
-        # several reviewers is merged into one revise turn.
-        revising: list[tuple[Agent, Review]] = []
-        for agent in agents:
-            received = [r for r in cycle if r.target == agent.id]
-            if all(approves(r) for r in received):
-                continue
-            merged = Review(
-                reviewer="+".join(r.reviewer for r in received),
-                target=agent.id,
-                round=received[0].round if received else 1,
-                body="\n\n".join(f"[{r.reviewer}]\n{r.body}" for r in received),
-                referenced_artifacts=(latest[agent.id].id,),
-            )
-            revising.append((agent, merged))
-        revised = await asyncio.gather(
-            *(agent.revise(latest[agent.id], merged) for agent, merged in revising)
-        )
-        for (agent, _), artifact in zip(revising, revised):
-            latest[agent.id] = artifact
-        all_reviews.extend(cycle)
-        if not revising:
+        cycle = await review_cycle(agents, latest, approve=approve)
+        all_reviews.extend(cycle.reviews)
+        latest = cycle.artifacts
+        if not cycle.revised:
             break
 
-    # 4. Neutral verification, one artifact at a time (verify worktrees share
-    #    on-disk state; parallel worktree creation is racy).
-    for artifact in latest.values():
-        if verify is not None:
-            await c.verify(artifact, verify, isolation=isolation)
-
-    # 5. Verdict.
-    verdict: Verdict | None = None
-    if judge is not None:
-        verdict = await c.judge(judge)
-    elif verify is not None:
-        verdict = await c.judge(tests_then_smallest_diff)
+    # 4-5. Neutral verification + verdict, the shared tail.
+    verdict = await verify_and_judge(
+        c, list(latest.values()), verify=verify, isolation=isolation, judge=judge
+    )
 
     return EnsembleOutcome(
         artifacts=[latest[k] for k in sorted(latest)],
@@ -241,14 +329,9 @@ async def arena(
         await asyncio.gather(*(a.work(task, expect_independent=True) for a in agents))
     )
     await c.freeze()
-    if verify is not None:
-        for artifact in artifacts:
-            await c.verify(artifact, verify, isolation=isolation)
-    verdict: Verdict | None = None
-    if judge is not None:
-        verdict = await c.judge(judge)
-    elif verify is not None:
-        verdict = await c.judge(tests_then_smallest_diff)
+    verdict = await verify_and_judge(
+        c, artifacts, verify=verify, isolation=isolation, judge=judge
+    )
     rows = await c.compare()
     return ArenaOutcome(artifacts=artifacts, rows=rows, verdict=verdict)
 
@@ -325,7 +408,8 @@ class Ballot:
 class JudgePanelOutcome:
     #: every validated ballot, by judge id
     ballots: list[tuple[str, list[Ballot]]]
-    #: the recorded verdict (highest mean score; ties broken by smallest diff)
+    #: the recorded verdict (default: highest mean score, ties broken by
+    #: smallest diff — see ``aggregate``)
     verdict: Verdict
 
 
@@ -333,12 +417,16 @@ async def judge_panel(
     c: Conductor,
     rubric: str,
     judges: Sequence[Agent],
+    *,
+    aggregate: Callable[[Sequence[Ballot], int, Run], Verdict] | None = None,
 ) -> JudgePanelOutcome:
     """A panel of judge agents scores the sealed candidates over the run's
     recorded evidence; citations are validated against real ids (bounded
-    re-ask on a hallucinated citation) and the mean-score winner is recorded
+    re-ask on a hallucinated citation) and the aggregated winner is recorded
     as the verdict. Judges are read-only seats — they never submit, and the
-    verdict is advisory (never auto-applicable)."""
+    verdict is advisory (never auto-applicable). ``aggregate`` swaps the
+    aggregation rule ``(ballots, n_judges, run) -> Verdict`` (median, quorum,
+    veto, …); the default is `mean_score_verdict`."""
     if not judges:
         raise ValueError("judge_panel needs at least one judge")
     status = await c.status()
@@ -348,7 +436,7 @@ async def judge_panel(
 
     valid_ids = {s.id for s in status.submissions} | {v.id for v in status.verifications}
     candidate_ids = [s.id for s in candidates]
-    evidence = _render_evidence(status)
+    evidence = render_evidence(status)
 
     prompt = (
         f"You are a neutral judge on a review panel. Rubric: {rubric}\n\n"
@@ -362,25 +450,25 @@ async def judge_panel(
 
     ballots: list[tuple[str, list[Ballot]]] = []
     for judge in judges:
-        card = await _ask_with_valid_citations(
+        card = await ask_with_valid_citations(
             judge, prompt, valid_ids, candidate_ids
         )
         ballots.append((judge.id, card))
 
     # Aggregation is a policy — the panel's contribution is eliciting
-    # evidence-cited ballots. Swap in your own aggregation (median, quorum,
-    # veto) by judging the same ballots with a different callable.
+    # evidence-cited ballots; ``aggregate`` decides over them.
     flat = [b for _, judge_ballots in ballots for b in judge_ballots]
     n_judges = len(judges)
+    rule = aggregate if aggregate is not None else mean_score_verdict
 
-    def mean_score_policy(run: Run) -> Verdict:
-        return _mean_score_verdict(flat, n_judges, run)
+    def aggregate_policy(run: Run) -> Verdict:
+        return rule(flat, n_judges, run)
 
-    verdict = await c.judge(mean_score_policy)
+    verdict = await c.judge(aggregate_policy)
     return JudgePanelOutcome(ballots=ballots, verdict=verdict)
 
 
-async def _ask_with_valid_citations(
+async def ask_with_valid_citations(
     judge: Agent,
     base_prompt: str,
     valid_ids: set[str],
@@ -423,10 +511,11 @@ async def _ask_with_valid_citations(
     raise AssertionError("unreachable")
 
 
-def _mean_score_verdict(ballots: Sequence[Ballot], n_judges: int, run: Run) -> Verdict:
+def mean_score_verdict(ballots: Sequence[Ballot], n_judges: int, run: Run) -> Verdict:
     """Mean-score aggregation: highest mean wins, ties broken by smallest
     diff. A panel is advisory over evidence (not a neutral re-execution), so
-    the verdict is never auto-applicable."""
+    the verdict is never auto-applicable. This is `judge_panel`'s default
+    ``aggregate`` rule — a template for writing your own."""
     method = f"panel:mean-score({n_judges} judges)"
     epsilon = sys.float_info.epsilon
     best: tuple[str, float] | None = None
@@ -441,7 +530,7 @@ def _mean_score_verdict(ballots: Sequence[Ballot], n_judges: int, run: Run) -> V
             _, current_mean = best
             better = mean > current_mean + epsilon or (
                 abs(mean - current_mean) <= epsilon
-                and _smaller_diff(candidate, best[0], run.submissions)
+                and smaller_diff(candidate, best[0], run.submissions)
             )
         if better:
             best = (candidate.id, mean)
@@ -463,8 +552,12 @@ def _mean_score_verdict(ballots: Sequence[Ballot], n_judges: int, run: Run) -> V
     )
 
 
-def _smaller_diff(candidate: Artifact, other_id: str, all_: Sequence[Artifact]) -> bool:
-    other = next((a for a in all_ if a.id == other_id), None)
+def smaller_diff(
+    candidate: Artifact, other_id: str, candidates: Sequence[Artifact]
+) -> bool:
+    """The smallest-diff tie-break: fewer files changed, then fewer
+    insertions, then lexicographic id — usable in any custom aggregation."""
+    other = next((a for a in candidates if a.id == other_id), None)
     if other is None:
         return False
     return (candidate.files_changed, candidate.insertions, candidate.id) < (
@@ -474,7 +567,9 @@ def _smaller_diff(candidate: Artifact, other_id: str, all_: Sequence[Artifact]) 
     )
 
 
-def _render_evidence(run: Run) -> str:
+def render_evidence(run: Run) -> str:
+    """Render a folded run's submissions and verifications as the compact,
+    id-citable evidence block `judge_panel` grounds its judges in."""
     lines = ["Submissions:"]
     for sub in run.submissions:
         lines.append(
