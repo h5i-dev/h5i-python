@@ -22,12 +22,14 @@ Install the `h5i` engine:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/h5i-dev/h5i/main/install.sh | sh
+# cargo install --git https://github.com/h5i-dev/h5i h5i-core
 ```
 
 Install the Python SDK from GitHub:
 
 ```bash
-pip install "git+https://github.com/h5i-dev/h5i-python.git"
+pip install h5i-orchestra
+# pip install "git+https://github.com/h5i-dev/h5i-python.git"
 ```
 
 ## Quickstart
