@@ -4,7 +4,7 @@ placement, materials, early exits, citation validation, tie-breaks."""
 
 import pytest
 
-from h5i.orchestra import patterns
+from h5i.orchestra import Artifact, Review, Verdict, patterns
 from mock_server import MockOrchestra, launch_conductor
 
 
@@ -223,6 +223,104 @@ async def test_judge_panel_validates_citations_and_breaks_ties():
         assert outcome.verdict.selected_submission == "s2"
         assert outcome.verdict.can_auto_apply is False
         assert "mean score 7.0/10" in outcome.verdict.reasons[0]
+    finally:
+        await c.close()
+
+
+def test_merge_reviews_tags_reviewers_and_references_target():
+    art = Artifact.from_raw(artifact_raw("claude"))
+    merged = patterns.merge_reviews(
+        [
+            Review(reviewer="codex", target="claude", round=2, body="fix x"),
+            Review(reviewer="gemini", target="claude", round=2, body="fix y"),
+        ],
+        art,
+    )
+    assert merged.reviewer == "codex+gemini"
+    assert merged.target == "claude"
+    assert merged.round == 2
+    assert "[codex]\nfix x" in merged.body and "[gemini]\nfix y" in merged.body
+    assert merged.referenced_artifacts == (art.id,)
+    with pytest.raises(ValueError, match="at least one review"):
+        patterns.merge_reviews([], art)
+
+
+async def test_ensemble_custom_approve_predicate():
+    mock = MockOrchestra()
+    wire_basics(mock)
+    # "SHIP IT" fails the default APPROVE/LGTM convention — only the custom
+    # predicate keeps every author from being sent a revise turn.
+    mock.on("agent.review", lambda p: {
+        "reviewer": p["reviewer"], "target": p["artifact"]["owner_agent"],
+        "round": 1, "body": "SHIP IT",
+    })
+    c = await launch_conductor(mock)
+    try:
+        agents = [await c.hire("claude"), await c.hire("codex")]
+        outcome = await patterns.ensemble(
+            c, "task", agents, rounds=3,
+            approve=lambda r: r.body.startswith("SHIP"),
+        )
+        assert outcome.rounds_run == 1
+        assert not mock.calls_to("agent.revise")
+        assert outcome.verdict is None  # no verifier, no judge → no verdict
+    finally:
+        await c.close()
+
+
+async def test_verify_and_judge_fallback_policy_and_none():
+    mock = MockOrchestra()
+    wire_basics(mock)
+    c = await launch_conductor(mock)
+    try:
+        agent = await c.hire("claude")
+        artifact = await agent.work("task")
+        await c.freeze()
+        # Neither a verifier nor a judge → nothing runs, nothing is recorded.
+        assert await patterns.verify_and_judge(c, [artifact]) is None
+        assert not mock.calls_to("conductor.verify")
+        # A verifier without a judge falls back to the CLI finalize rule.
+        verdict = await patterns.verify_and_judge(c, [artifact], verify=["true"])
+        assert verdict is not None
+        assert verdict.method == "tests_then_smallest_diff"
+        assert len(mock.calls_to("conductor.verify")) == 1
+    finally:
+        await c.close()
+
+
+async def test_judge_panel_custom_aggregate():
+    mock = MockOrchestra()
+    wire_basics(mock)
+    s1 = artifact_raw("claude", id_="s1")
+    s2 = artifact_raw("codex", id_="s2")
+    run_raw = {"id": "testrun", "phase": "sealed_submit",
+               "submissions": [s1, s2], "verifications": []}
+    mock.on("conductor.status", lambda p: run_raw)
+    mock.on("agent.ask", lambda p: {"ballots": [
+        {"artifact_id": "s1", "score": 9, "rationale": "solid", "cited_ids": ["s1"]},
+        {"artifact_id": "s2", "score": 2, "rationale": "broken", "cited_ids": ["s2"]},
+    ]})
+    mock.on("conductor.judge_begin", lambda p: {"replayed": False, "token": "judge#1", "run": run_raw})
+    mock.on("conductor.judge_commit", lambda p: p["verdict"])
+
+    def veto(ballots, n_judges, run):
+        survivors = {b.artifact_id for b in ballots} - {
+            b.artifact_id for b in ballots if b.score < 5
+        }
+        return Verdict(
+            selected_submission=next(iter(survivors), None),
+            method=f"panel:veto({n_judges} judges)",
+            decided_by="test",
+            can_auto_apply=False,
+            reasons=("any score below 5 disqualifies",),
+        )
+
+    c = await launch_conductor(mock)
+    try:
+        judge = await c.hire("judge")
+        outcome = await patterns.judge_panel(c, "rubric", [judge], aggregate=veto)
+        assert outcome.verdict.selected_submission == "s1"
+        assert outcome.verdict.method == "panel:veto(1 judges)"
     finally:
         await c.close()
 
