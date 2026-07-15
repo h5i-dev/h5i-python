@@ -16,9 +16,9 @@ h5i-python is the Python SDK for the [h5i](https://github.com/h5i-dev/h5i) orche
 
 Each agent works inside its own sandboxed Git worktree, so it cannot overwrite the original checkout or another agent's work. Agent turns produce Git-backed artifacts that can be reviewed, revised, neutrally verified, compared, selected, and applied as one auditable workflow.
 
-## Install
+## 1. Install
 
-Install the `h5i` engine:
+Install the [`h5i`](https://github.com/h5i-dev/h5i) engine:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/h5i-dev/h5i/main/install.sh | sh
@@ -32,7 +32,7 @@ pip install h5i-orchestra
 # pip install "git+https://github.com/h5i-dev/h5i-python.git"
 ```
 
-## Quickstart
+## 2. Quickstart
 
 Create `ensemble.py` inside the Git repository the agents should modify. This workflow let Claude and Codex independently implement the same task, review and improve each other’s work, and then select the better result.
 
@@ -74,7 +74,7 @@ With the default `launcher="resident"`, `h5i` automatically starts the agent ses
   <img src="./assets/h5i-python-short.gif" width="95%">
 </p>
 
-## Examples
+## 3. Examples
 
 For example, you can program:
 
@@ -92,6 +92,6 @@ See [examples/](./examples/) for complete scores, including:
 - [tournament.py](./examples/tournament.py): tournament brackets; and
 - [custom_control_flow.py](./examples/custom_control_flow.py): custom Python control flow.
 
-## License
+## 4. License
 
 Apache-2.0
