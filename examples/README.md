@@ -99,3 +99,11 @@ in an `apply` pause at a durable human gate: the question is delivered over
 None of the pattern functions are privileged — each is ~40 lines of the same
 public SDK these examples use (`src/h5i/orchestra/patterns.py`). When a
 pattern almost fits, copy it into your score and edit it.
+
+## Paper scores
+
+[`papers/`](papers/README.md) holds reference implementations of twenty
+published multi-agent workflows — Self-Refine, Reflexion, Tree of Thoughts,
+Mixture-of-Agents, MetaGPT, ChatDev, and more — each paper's core loop
+expressed as an ordinary score over the same public SDK. Same prerequisites
+as above; see that README for the map from paper to primitives.

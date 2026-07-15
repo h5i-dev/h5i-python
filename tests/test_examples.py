@@ -8,7 +8,11 @@ EXAMPLES = Path(__file__).parents[1] / "examples"
 CHEAP_MODELS = {"claude-haiku-4-5", "gpt-5.4-mini"}
 
 
-@pytest.mark.parametrize("path", sorted(EXAMPLES.glob("*.py")), ids=lambda p: p.name)
+@pytest.mark.parametrize(
+    "path",
+    sorted(EXAMPLES.rglob("*.py")),
+    ids=lambda p: str(p.relative_to(EXAMPLES)),
+)
 def test_examples_are_valid_python(path: Path):
     ast.parse(path.read_text(), filename=str(path))
 
@@ -31,7 +35,11 @@ def test_resident_examples_do_not_preflight_live_sessions(name: str):
     )
 
 
-@pytest.mark.parametrize("path", sorted(EXAMPLES.glob("*.py")), ids=lambda p: p.name)
+@pytest.mark.parametrize(
+    "path",
+    sorted(EXAMPLES.rglob("*.py")),
+    ids=lambda p: str(p.relative_to(EXAMPLES)),
+)
 def test_examples_pin_cheap_models(path: Path):
     tree = ast.parse(path.read_text())
     hire_calls = [
