@@ -92,6 +92,57 @@ See [examples/](./examples/) for complete scores, including:
 - [tournament.py](./examples/tournament.py): tournament brackets; and
 - [custom_control_flow.py](./examples/custom_control_flow.py): custom Python control flow.
 
+### 3.1 Paper reference implementations
+
+[examples/papers/](./examples/papers/) re-implements the core workflow of
+40 published multi-agent papers as self-contained scores — the loop, the
+roles, and the aggregation rule, generic over the task you pass in (see
+its [README](./examples/papers/README.md) for prerequisites and a reading
+order):
+
+| Paper | arXiv | Example | One-line summary |
+|---|---|---|---|
+| Self-Refine | [2303.17651](https://arxiv.org/abs/2303.17651) | [self_refine.py](./examples/papers/self_refine.py) | Generate, self-critique, refine until the critic approves. |
+| Reflexion | [2303.11366](https://arxiv.org/abs/2303.11366) | [reflexion.py](./examples/papers/reflexion.py) | Verbal reflections on test failures accumulate as episodic memory across retries. |
+| CRITIC | [2305.11738](https://arxiv.org/abs/2305.11738) | [critic.py](./examples/papers/critic.py) | Critiques grounded in external tool runs drive each correction. |
+| Self-Debug | [2304.05128](https://arxiv.org/abs/2304.05128) | [self_debugging.py](./examples/papers/self_debugging.py) | Explain your own code line by line (rubber duck), then fix. |
+| Constitutional AI | [2212.08073](https://arxiv.org/abs/2212.08073) | [constitutional_ai.py](./examples/papers/constitutional_ai.py) | Per-principle critiques against a written constitution fold into each revision. |
+| Self-Consistency | [2203.11171](https://arxiv.org/abs/2203.11171) | [self_consistency.py](./examples/papers/self_consistency.py) | N independent reasoning paths, majority vote over the final answers. |
+| More Agents Is All You Need | [2402.05120](https://arxiv.org/abs/2402.05120) | [agent_forest.py](./examples/papers/agent_forest.py) | Sampling-and-voting, with a scaling curve over ensemble size. |
+| Universal Self-Consistency | [2311.17311](https://arxiv.org/abs/2311.17311) | [universal_self_consistency.py](./examples/papers/universal_self_consistency.py) | A selector picks the free-form response most consistent with the sample population. |
+| Multiagent Debate | [2305.14325](https://arxiv.org/abs/2305.14325) | [multiagent_debate.py](./examples/papers/multiagent_debate.py) | Answer independently, read the others, update; majority vote at the end. |
+| MAD: Divergent Thinking | [2305.19118](https://arxiv.org/abs/2305.19118) | [mad_divergent.py](./examples/papers/mad_divergent.py) | An obligated-to-disagree negative side debates the affirmative under an adaptive judge. |
+| ReConcile | [2309.13007](https://arxiv.org/abs/2309.13007) | [reconcile.py](./examples/papers/reconcile.py) | A model-diverse round table converges by confidence-weighted vote. |
+| Persuasive Debate | [2402.06782](https://arxiv.org/abs/2402.06782) | [persuasive_debate.py](./examples/papers/persuasive_debate.py) | Debaters argue assigned sides; a transcript-only judge decides. |
+| Negotiation Self-Play | [2305.10142](https://arxiv.org/abs/2305.10142) | [negotiation.py](./examples/papers/negotiation.py) | Buyer/seller bargaining games improve via a critic's in-context feedback. |
+| ChatEval | [2308.07201](https://arxiv.org/abs/2308.07201) | [chateval.py](./examples/papers/chateval.py) | Persona-diverse judges debate one-by-one before scoring the candidates. |
+| Multi-Agent Verification | [2502.20379](https://arxiv.org/abs/2502.20379) | [mav_bon.py](./examples/papers/mav_bon.py) | Best-of-n candidates times m binary aspect verifiers; most approvals wins. |
+| Chain-of-Verification | [2309.11495](https://arxiv.org/abs/2309.11495) | [chain_of_verification.py](./examples/papers/chain_of_verification.py) | Draft, verify with questions answered by seats that never saw the draft, revise. |
+| SelfCheckGPT | [2303.08896](https://arxiv.org/abs/2303.08896) | [selfcheckgpt.py](./examples/papers/selfcheckgpt.py) | Per-sentence consistency against independent samples flags hallucinations. |
+| PRD: Peer Rank & Discussion | [2307.02762](https://arxiv.org/abs/2307.02762) | [prd_peer_rank.py](./examples/papers/prd_peer_rank.py) | Contestants judge all answer pairs; agreement-weighted ranking plus discussion. |
+| LLM-Blender | [2306.02561](https://arxiv.org/abs/2306.02561) | [llm_blender.py](./examples/papers/llm_blender.py) | Pairwise-rank candidates in both orders, then fuse the top-k. |
+| Mixture-of-Agents | [2406.04692](https://arxiv.org/abs/2406.04692) | [mixture_of_agents.py](./examples/papers/mixture_of_agents.py) | Layered proposers each fed the whole previous layer; an aggregator synthesizes. |
+| Tree of Thoughts | [2305.10601](https://arxiv.org/abs/2305.10601) | [tree_of_thoughts.py](./examples/papers/tree_of_thoughts.py) | Beam search over partial plans; only the best leaf pays for real work. |
+| Graph of Thoughts | [2308.09687](https://arxiv.org/abs/2308.09687) | [graph_of_thoughts.py](./examples/papers/graph_of_thoughts.py) | Generate/score/aggregate/refine thought transformations on an explicit DAG. |
+| LATS | [2310.04406](https://arxiv.org/abs/2310.04406) | [lats.py](./examples/papers/lats.py) | MCTS over real attempts, with test results as reward and reflections on failures. |
+| Least-to-Most | [2205.10625](https://arxiv.org/abs/2205.10625) | [least_to_most.py](./examples/papers/least_to_most.py) | Decompose easiest-first; solve in order with every prior answer in context. |
+| Skeleton-of-Thought | [2307.15337](https://arxiv.org/abs/2307.15337) | [skeleton_of_thought.py](./examples/papers/skeleton_of_thought.py) | Outline first, expand every point in parallel, assemble in order. |
+| Meta-Prompting | [2401.12954](https://arxiv.org/abs/2401.12954) | [meta_prompting.py](./examples/papers/meta_prompting.py) | A conductor invents expert personas on the fly and consults fresh seats. |
+| Chain of Agents | [2406.02818](https://arxiv.org/abs/2406.02818) | [chain_of_agents.py](./examples/papers/chain_of_agents.py) | Sequential workers pass a communication unit across chunks; a manager answers. |
+| STORM | [2402.14207](https://arxiv.org/abs/2402.14207) | [storm.py](./examples/papers/storm.py) | Perspectives, simulated writer-expert interviews, outline, then the article. |
+| CAMEL | [2303.17760](https://arxiv.org/abs/2303.17760) | [camel.py](./examples/papers/camel.py) | Inception-prompted user/assistant role play, one instruction at a time. |
+| AgentCoder | [2312.13010](https://arxiv.org/abs/2312.13010) | [agentcoder.py](./examples/papers/agentcoder.py) | Programmer and mutually blind test designer; a neutral executor loops failures back. |
+| MapCoder | [2405.11403](https://arxiv.org/abs/2405.11403) | [mapcoder.py](./examples/papers/mapcoder.py) | Exemplar recall, confidence-ranked plans, and plan-wise bounded debugging. |
+| MetaGPT | [2308.00352](https://arxiv.org/abs/2308.00352) | [metagpt.py](./examples/papers/metagpt.py) | Roles exchange structured documents (PRD, design, QA report), never free chat. |
+| ChatDev | [2307.07924](https://arxiv.org/abs/2307.07924) | [chatdev.py](./examples/papers/chatdev.py) | A chat chain: every waterfall phase is a two-role dialogue with a settled deliverable. |
+| CodeT | [2207.10397](https://arxiv.org/abs/2207.10397) | [codet.py](./examples/papers/codet.py) | Rank blind solutions by agreement with an independently generated test suite. |
+| AlphaCodium | [2401.08500](https://arxiv.org/abs/2401.08500) | [alphacodium.py](./examples/papers/alphacodium.py) | Problem reflection and AI-generated tests before coding; iterate until all green. |
+| Agentless | [2407.01489](https://arxiv.org/abs/2407.01489) | [agentless.py](./examples/papers/agentless.py) | A fixed localize, repair, validate pipeline — no agentic wandering. |
+| Parsel | [2212.10561](https://arxiv.org/abs/2212.10561) | [parsel.py](./examples/papers/parsel.py) | Decompose into a function graph; implement parts in parallel, compose, test. |
+| Exchange-of-Thought | [2312.01823](https://arxiv.org/abs/2312.01823) | [exchange_of_thought.py](./examples/papers/exchange_of_thought.py) | Four communication topologies (bus/star/ring/tree) as a who-sees-what function. |
+| DyLAN | [2310.02170](https://arxiv.org/abs/2310.02170) | [dylan.py](./examples/papers/dylan.py) | Rank each round's contributions and deactivate the weakest seat as you go. |
+| AgentVerse | [2308.10848](https://arxiv.org/abs/2308.10848) | [agentverse.py](./examples/papers/agentverse.py) | Recruit, collaborate, evaluate — and re-recruit a better team with fresh mid-run hires. |
+
 ## 4. License
 
 Apache-2.0
