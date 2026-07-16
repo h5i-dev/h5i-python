@@ -6,7 +6,7 @@ influence edges in the event log).
 Stage 1 works pre-freeze; the round seals right after it, because materials
 ride the sealed-phase-only discuss channel.
 
-    python examples/pipeline_score.py ["<task>"]   # default: implement quicksort with pytest
+    python examples/tutorial/pipeline_score.py ["<task>"]   # default: implement quicksort with pytest
 """
 
 import asyncio

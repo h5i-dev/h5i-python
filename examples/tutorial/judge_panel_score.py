@@ -9,7 +9,7 @@ re-asked (bounded); the mean-score winner is recorded as an advisory verdict
 Judges are read-only seats that must be hired before the round seals —
 alongside the workers, exactly like the roster note in patterns.py says.
 
-    python examples/judge_panel_score.py ["<task>"]   # default: implement quicksort with pytest
+    python examples/tutorial/judge_panel_score.py ["<task>"]   # default: implement quicksort with pytest
 """
 
 import asyncio

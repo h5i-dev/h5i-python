@@ -6,7 +6,7 @@ a Python function calling another. Each match journals independently, which
 means a killed bracket resumes mid-tournament — finished matches replay their
 recorded verdicts instantly.
 
-    python examples/tournament.py ["<task>"]   # default: implement quicksort with pytest
+    python examples/tutorial/tournament.py ["<task>"]   # default: implement quicksort with pytest
 """
 
 import asyncio

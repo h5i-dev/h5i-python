@@ -5,7 +5,7 @@ debate's conclusion *is* Python data, so it steers ordinary control flow.
 Debate is pure `ask` (no artifacts, no freeze), so the winning side can go
 straight into a work turn afterwards, in the same run and journal.
 
-    python examples/debate_then_build.py ["<task>"]   # default: implement quicksort with pytest
+    python examples/tutorial/debate_then_build.py ["<task>"]   # default: implement quicksort with pytest
 """
 
 import asyncio

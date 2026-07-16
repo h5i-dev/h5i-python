@@ -14,7 +14,7 @@ Three ways to make one your own, cheapest first:
   `merge_reviews`, `review_cycle`, `verify_and_judge`,
   `ask_with_valid_citations`, `render_evidence`, `mean_score_verdict`,
   `smaller_diff`. A custom pattern is an ordinary async function over these
-  (``examples/quorum_ensemble.py`` builds one from scratch).
+  (``examples/tutorial/quorum_ensemble.py`` builds one from scratch).
 - **Fork** — if the control flow itself doesn't fit, copy the pattern's ~40
   lines into your score and edit. There is deliberately no plugin API to
   learn; patterns are user-space code.
@@ -115,7 +115,7 @@ async def review_cycle(
     ``approve`` — revises once against the merged feedback. Returns updated
     artifacts without mutating ``latest``. For a quorum other than unanimity,
     write the loop yourself on `merge_reviews` — it is a few lines (see
-    ``examples/quorum_ensemble.py``)."""
+    ``examples/tutorial/quorum_ensemble.py``)."""
     pairs = [
         (reviewer, target)
         for reviewer in agents

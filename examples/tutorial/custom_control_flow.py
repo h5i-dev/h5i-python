@@ -4,7 +4,7 @@ This score shows the pieces no manifest could express: data turns feeding
 `if`, a journaled fan-out over a dynamic work list, a custom (LLM-assisted)
 verdict policy, and a mid-run score migration marker.
 
-    python examples/custom_control_flow.py ["<task>"]   # default: implement quicksort with pytest
+    python examples/tutorial/custom_control_flow.py ["<task>"]   # default: implement quicksort with pytest
 """
 
 import asyncio

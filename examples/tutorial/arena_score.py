@@ -7,7 +7,7 @@ verifier command runs against every candidate, and the built-in policy picks
 the smallest green diff. The compare rows are the same arena view
 `h5i team compare` renders.
 
-    python examples/arena_score.py ["<task>"]   # default: implement quicksort with pytest
+    python examples/tutorial/arena_score.py ["<task>"]   # default: implement quicksort with pytest
 """
 
 import asyncio
