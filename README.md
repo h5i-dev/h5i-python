@@ -1,7 +1,16 @@
-# h5i-python: Programmable Multi-Agent Orchestration
+<p align="center">
+  <a href="https://h5i.dev/" target="_blank">
+    <img src="./assets/h5i-python-logo.png" alt="h5i logo" height="126">
+  </a>
+</p>
 
+<p align="center">
   <a href="https://github.com/h5i-dev/h5i-python/actions/workflows/test.yaml"><img alt="tests" src="https://github.com/h5i-dev/h5i-python/actions/workflows/test.yaml/badge.svg"></a>
   <a href="https://github.com/h5i-dev/h5i-python/blob/main/LICENSE"><img alt="Apache-2.0" src="https://img.shields.io/github/license/h5i-dev/h5i-python?color=blue"></a>
+  <a href="https://github.com/h5i-dev/h5i-python/releases"><img alt="release" src="https://img.shields.io/github/v/release/h5i-dev/h5i-python?label=release"></a>
+</p>
+
+<h1 align="center">h5i-python: Programmable Multi-Agent Orchestration</h1>
 
 Claude Code, Codex, and other coding agents have different strengths. However, naive multi-agent orchestration such as simply launching several agents in parallel or allowing them to exchange messages does not define a reproducible development process. A real workflow must specify:
 
