@@ -105,8 +105,8 @@ object, the five papers are one function with a parameter.
 
 The rubber-duck detail in Self-Debug is worth stealing: before fixing,
 the model must explain what its code *actually does*, not what it was
-meant to do. In my (anecdotal, cheap-model) runs this produced noticeably
-more targeted revisions than passing the error message alone.
+meant to do — the paper reports this helps even with no error message at
+all, which is a strong claim about where the signal actually lives.
 
 ## 4. Prefer execution over opinion, and never verify in the author's environment
 
