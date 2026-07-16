@@ -86,11 +86,7 @@ With the default `launcher="resident"`, `h5i` automatically starts the agent ses
 - [tournament.py](./examples/tutorial/tournament.py): tournament brackets; and
 - [custom_control_flow.py](./examples/tutorial/custom_control_flow.py): custom Python control flow.
 
-[examples/papers/](./examples/papers/) re-implements the core workflow of
-40 published multi-agent papers as self-contained scores — the loop, the
-roles, and the aggregation rule, generic over the task you pass in (see
-its [README](./examples/papers/README.md) for prerequisites and a reading
-order):
+[examples/papers/](./examples/papers/) re-implements the core workflow of 40 published multi-agent papers:
 
 | Paper | Example | One-line summary |
 |---|---|---|
