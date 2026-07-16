@@ -6,7 +6,7 @@ run continues where it stopped. Resident agent sessions are expected to be
 attached (bring them up with `launcher="resident"` to let the score spawn
 tmux sessions itself).
 
-    python examples/ensemble_score.py ["<task>"]   # default: implement quicksort with pytest
+    python examples/tutorial/ensemble_score.py ["<task>"]   # default: implement quicksort with pytest
 """
 
 import asyncio

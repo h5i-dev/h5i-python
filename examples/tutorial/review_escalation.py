@@ -6,7 +6,7 @@ This is `if`/`for` doing what a workflow language would need three node types
 for. Both seats are hired up front (enrollment is open-round-only), so the
 escalation path exists from the start whether or not it's taken.
 
-    python examples/review_escalation.py ["<task>"]   # default: implement quicksort with pytest
+    python examples/tutorial/review_escalation.py ["<task>"]   # default: implement quicksort with pytest
 """
 
 import asyncio

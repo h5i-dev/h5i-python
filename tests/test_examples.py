@@ -19,7 +19,7 @@ def test_examples_are_valid_python(path: Path):
 
 @pytest.mark.parametrize("name", ["arena_score.py", "ensemble_score.py"])
 def test_resident_examples_do_not_preflight_live_sessions(name: str):
-    tree = ast.parse((EXAMPLES / name).read_text())
+    tree = ast.parse((EXAMPLES / "tutorial" / name).read_text())
     live_checks = [
         call
         for call in ast.walk(tree)

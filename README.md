@@ -84,13 +84,13 @@ For example, you can program:
 
 See [examples/](./examples/) for complete scores, including:
 
-- [arena_score.py](./examples/arena_score.py): independent arena ranking;
-- [ensemble_score.py](./examples/ensemble_score.py): mutual-review ensembles;
-- [debate_then_build.py](./examples/debate_then_build.py): architect-to-implementer pipelines;
-- [review_escalation.py](./examples/review_escalation.py): conditional review escalation;
-- [judge_panel_score.py](./examples/judge_panel_score.py): LLM judge panels;
-- [tournament.py](./examples/tournament.py): tournament brackets; and
-- [custom_control_flow.py](./examples/custom_control_flow.py): custom Python control flow.
+- [arena_score.py](./examples/tutorial/arena_score.py): independent arena ranking;
+- [ensemble_score.py](./examples/tutorial/ensemble_score.py): mutual-review ensembles;
+- [debate_then_build.py](./examples/tutorial/debate_then_build.py): architect-to-implementer pipelines;
+- [review_escalation.py](./examples/tutorial/review_escalation.py): conditional review escalation;
+- [judge_panel_score.py](./examples/tutorial/judge_panel_score.py): LLM judge panels;
+- [tournament.py](./examples/tutorial/tournament.py): tournament brackets; and
+- [custom_control_flow.py](./examples/tutorial/custom_control_flow.py): custom Python control flow.
 
 ### 3.1 Paper reference implementations
 

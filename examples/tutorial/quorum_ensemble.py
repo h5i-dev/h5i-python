@@ -17,7 +17,7 @@ Everything used here is public API — no privileged hooks. Hire every seat
 before the freeze (enrollment is open-round-only), and remember each turn is
 journaled: a killed run resumes without re-paying completed turns.
 
-    python examples/quorum_ensemble.py ["<task>"]   # default: implement quicksort with pytest
+    python examples/tutorial/quorum_ensemble.py ["<task>"]   # default: implement quicksort with pytest
 """
 
 import asyncio
