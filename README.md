@@ -76,13 +76,7 @@ With the default `launcher="resident"`, `h5i` automatically starts the agent ses
 
 ## 3. Examples
 
-For example, you can program:
-
-- ask Claude and Codex to implement the same task independently, have them review and improve each other's work, and select the smallest candidate that passes the tests;
-- let Claude Fable and Codex GPT-5.6 Sol iteratively refine a design, then hand the agreed design to Claude Opus for implementation; or
-- repeat a Fable-design/Sol-review loop ten times, ask Opus to implement the result, and invoke Sol to repair the implementation only when Fable rejects it.
-
-See [examples/](./examples/) for complete scores, including:
+[examples/tutorial](./examples/tutorial/) provides basic multi-agent orchestration patterns:
 
 - [arena_score.py](./examples/tutorial/arena_score.py): independent arena ranking;
 - [ensemble_score.py](./examples/tutorial/ensemble_score.py): mutual-review ensembles;
@@ -91,8 +85,6 @@ See [examples/](./examples/) for complete scores, including:
 - [judge_panel_score.py](./examples/tutorial/judge_panel_score.py): LLM judge panels;
 - [tournament.py](./examples/tutorial/tournament.py): tournament brackets; and
 - [custom_control_flow.py](./examples/tutorial/custom_control_flow.py): custom Python control flow.
-
-### 3.1 Paper reference implementations
 
 [examples/papers/](./examples/papers/) re-implements the core workflow of
 40 published multi-agent papers as self-contained scores — the loop, the
