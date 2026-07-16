@@ -88,7 +88,7 @@ With the default `launcher="resident"`, `h5i` automatically starts the agent ses
 
 [examples/papers/](./examples/papers/) re-implements the core workflow of 40 published multi-agent papers:
 
-| Paper | Example | One-line summary |
+| Paper | Example | Summary |
 |---|---|---|
 | [Self-Refine](https://arxiv.org/abs/2303.17651) | [self_refine.py](./examples/papers/self_refine.py) | Generate, self-critique, refine until the critic approves. |
 | [Reflexion](https://arxiv.org/abs/2303.11366) | [reflexion.py](./examples/papers/reflexion.py) | Verbal reflections on test failures accumulate as episodic memory across retries. |
