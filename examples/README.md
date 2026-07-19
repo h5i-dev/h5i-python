@@ -3,7 +3,9 @@
 Every example is a complete, resumable score: kill it at any point and run it
 again — journaled steps replay and the run continues where it stopped. They
 assume agent runtimes are available (`launcher="resident"` brings tmux
-sessions up itself; drop it if you park resident sessions yourself).
+sessions up itself; drop it if you park resident sessions yourself, or use
+`launcher="herdr"` to bring seats up as [herdr](https://herdr.dev) panes
+instead — no tmux needed).
 
 You don't need to `tmux attach` by hand to watch the agents: a resident-launcher
 score auto-opens a viewer on each agent session as it comes up — a window
@@ -24,7 +26,8 @@ You need five things:
    or point `$H5I` at it, or pass `h5i_bin=...` to `Conductor`.
 3. **Agent runtime CLIs** — every score hires `runtime="claude"` (Claude Code);
    most also hire `runtime="codex"`. Both CLIs must be installed and logged in.
-   `launcher="resident"` additionally needs `tmux` (it spawns the sessions).
+   `launcher="resident"` additionally needs `tmux` (it spawns the sessions);
+   `launcher="herdr"` needs the `herdr` binary and a running herdr session.
 4. **A repo to work on** — each score opens `Conductor(".", …)`, so run it from
    the repository the agents should modify, with a **clean worktree** (the
    arena and ensemble scores call `preflight(clean_worktree=True)` and fail

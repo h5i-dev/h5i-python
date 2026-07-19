@@ -78,9 +78,12 @@ class Conductor:
 
     - ``launcher``: ``"attach"`` (default — resident sessions pick turns out
       of their inboxes), ``"resident"`` (the bridge brings tmux sessions up
-      itself), or ``"client"`` (every turn is delivered to ``on_turn`` in
-      *this* process — how tests script agents, and how a score can spawn
-      its own runtimes). Passing ``on_turn`` implies ``"client"``.
+      itself), ``"herdr"`` (this process brings each seat up as a pane in a
+      running `herdr <https://herdr.dev>`_ session — visible in herdr's
+      sidebar with per-agent status, no tmux or viewer terminals needed), or
+      ``"client"`` (every turn is delivered to ``on_turn`` in *this*
+      process — how tests script agents, and how a score can spawn its own
+      runtimes). Passing ``on_turn`` implies ``"client"``.
     - ``isolation``: the run's default sandbox tier for hired agents' envs
       (``"workspace"``, ``"process"``, ``"supervised"``, ``"container"``, …).
       Every :meth:`hire` inherits it unless it passes its own. An explicit
@@ -125,6 +128,14 @@ class Conductor:
             raise TypeError('launcher="client" requires on_turn=...')
         if on_turn is not None and launcher not in (None, "client"):
             raise TypeError(f'on_turn=... implies launcher="client", not {launcher!r}')
+        if launcher == "herdr":
+            # The herdr launcher is client-mode with a built-in turn handler:
+            # the engine dispatches `launcher.on_turn` here, and we make sure
+            # the seat's pane is up (see `_herdr.HerdrLauncher`).
+            from ._herdr import HerdrLauncher
+
+            on_turn = HerdrLauncher(h5i_bin=h5i_bin)
+            launcher = "client"
         self._repo = str(Path(repo).resolve())
         self._run = run
         self._title = title
