@@ -353,10 +353,25 @@ class Conductor:
         command: Sequence[str],
         *,
         isolation: str | None = None,
+        sealed_from: "Artifact | str | None" = None,
     ) -> Verification:
         """Neutrally re-execute ``command`` against the artifact owner's
         latest submission in a fresh sandboxed worktree — never the author's
-        box."""
+        box.
+
+        By default the command runs against the candidate's own submitted
+        tree — appropriate when tests are part of the deliverable under
+        review. ``sealed_from`` applies a **sealed overlay** instead: pass
+        the sealing agent's ``Artifact`` (or a submission id / team agent
+        id), and that submission's base..commit diff is overlaid over the
+        candidate before the command runs, so the candidate cannot weaken
+        checks it was handed — its edits to sealed paths are discarded and
+        recorded as ``Verification.sealed_overridden`` tamper evidence.
+        Typically the sealed content is an independently designed test set;
+        the mechanism is content-agnostic (golden files, scoring harnesses).
+        The sealing agent must differ from the candidate's owner
+        (self-sealing fails closed), and the built-in verdict refuses to
+        compare candidates verified against divergent sealed sets."""
         if isinstance(command, (str, bytes)):
             raise TypeError(
                 "verify(command=...) takes an argv sequence like "
@@ -368,6 +383,10 @@ class Conductor:
         }
         if isolation is not None:
             params["isolation"] = isolation
+        if sealed_from is not None:
+            params["sealed_from"] = (
+                sealed_from.id if isinstance(sealed_from, Artifact) else sealed_from
+            )
         return Verification.from_raw(await self._request("conductor.verify", params))
 
     async def judge(self, policy: _policy.Policy = _policy.tests_then_smallest_diff) -> Verdict:

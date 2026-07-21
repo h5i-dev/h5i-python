@@ -288,6 +288,25 @@ async def test_verify_and_judge_fallback_policy_and_none():
         await c.close()
 
 
+async def test_verify_and_judge_threads_sealed_from():
+    mock = MockOrchestra()
+    wire_basics(mock)
+    c = await launch_conductor(mock)
+    try:
+        coder = await c.hire("coder")
+        designer = await c.hire("designer")
+        candidate = await coder.work("implement")
+        tests = await designer.work("design tests")
+        await c.freeze()
+        await patterns.verify_and_judge(
+            c, [candidate], verify=["sh", "tests.sh"], sealed_from=tests
+        )
+        (call,) = mock.calls_to("conductor.verify")
+        assert call["sealed_from"] == tests.id
+    finally:
+        await c.close()
+
+
 async def test_judge_panel_custom_aggregate():
     mock = MockOrchestra()
     wire_basics(mock)

@@ -99,6 +99,50 @@ async def test_work_round_trip_preserves_unknown_fields():
         await c.close()
 
 
+async def test_verify_sealed_from_passes_id_and_parses_seal_fields():
+    mock = MockOrchestra()
+    mock.on("agent.hire", lambda p: {"agent_id": p["name"], "env_id": f"env/{p['name']}/x"})
+    mock.on("agent.work", lambda p: artifact_raw(p["agent"], id_=f"sha:{p['agent']}"))
+    mock.on("conductor.verify", lambda p: {
+        "id": "v1", "submission_id": p["artifact"]["id"], "owner_agent": "coder",
+        "round": 1, "command": p["command"], "applies_cleanly": True,
+        "tests_passed": False, "isolation": "workspace",
+        "sealed_from": p["sealed_from"], "sealed_tree_oid": "tree:tests",
+        "sealed_paths": ["tests.sh"], "sealed_overridden": ["tests.sh"],
+    })
+    c = await launch_conductor(mock)
+    try:
+        coder = await c.hire("coder", runtime="claude")
+        designer = await c.hire("designer", runtime="codex")
+        candidate = await coder.work("implement")
+        tests = await designer.work("design tests")
+
+        # An Artifact seals by its submission id; a plain string passes through.
+        v = await c.verify(candidate, ["sh", "tests.sh"], sealed_from=tests)
+        assert mock.calls_to("conductor.verify")[-1]["sealed_from"] == tests.id
+        await c.verify(candidate, ["sh", "tests.sh"], sealed_from="designer")
+        assert mock.calls_to("conductor.verify")[-1]["sealed_from"] == "designer"
+
+        # The seal evidence round-trips into the typed Verification.
+        assert v.sealed
+        assert v.sealed_from == tests.id
+        assert v.sealed_tree_oid == "tree:tests"
+        assert v.sealed_paths == ("tests.sh",)
+        assert v.sealed_overridden == ("tests.sh",)
+
+        # Unsealed requests omit the parameter entirely.
+        mock.on("conductor.verify", lambda p: {
+            "id": "v2", "submission_id": p["artifact"]["id"], "owner_agent": "coder",
+            "round": 1, "command": p["command"], "applies_cleanly": True,
+            "tests_passed": True, "isolation": "workspace",
+        })
+        plain = await c.verify(candidate, ["sh", "tests.sh"])
+        assert "sealed_from" not in mock.calls_to("conductor.verify")[-1]
+        assert not plain.sealed and plain.sealed_paths == ()
+    finally:
+        await c.close()
+
+
 async def test_step_commit_replay_and_abort():
     mock = MockOrchestra()
     journal: dict[str, object] = {}
