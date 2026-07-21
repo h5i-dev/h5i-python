@@ -79,11 +79,11 @@ python ensemble.py
 
 With the default `launcher="resident"`, `h5i` automatically starts the agent sessions through `tmux`.
 
-If you use [herdr](https://herdr.dev) (an agent multiplexer for the terminal), pass `launcher="herdr"` instead: each agent seat comes up as a herdr pane beside your work, labeled `h5i-orch-<run>-<agent>`, with herdr's own per-agent status (working / blocked / done) in its sidebar. No tmux and no viewer terminals are needed; a re-run of the score rediscovers its panes by label, and a seat whose session died is restarted in place. Run the score inside a herdr pane (or anywhere the `herdr` CLI can reach a running server). A score that runs inside herdr while using the tmux `launcher="resident"` also benefits: the session watcher opens each tmux session in a herdr pane automatically.
-
 <p align="center">
   <img src="./assets/h5i-python-short.gif" width="95%">
 </p>
+
+If you use [herdr](https://herdr.dev) (an agent multiplexer for the terminal), pass `launcher="herdr"` instead: each agent seat comes up as a herdr pane beside your work, labeled `h5i-orch-<run>-<agent>`, with herdr's own per-agent status (working / blocked / done) in its sidebar.
 
 ## 3. Examples
 
