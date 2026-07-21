@@ -5,10 +5,15 @@ designer / test executor.
 The test designer writes tests *without seeing the implementation* — tests
 written after the code inherit its blind spots. So both seats work in
 parallel before the freeze (h5i stamps both artifacts independent), then
-the programmer applies the granted test suite as sealed-phase materials and
-must satisfy it. The test executor role is not an LLM at all:
-``conductor.verify`` runs the suite neutrally, and each failure loops back
-to the programmer as a constructed review.
+the programmer is shown the test suite as sealed-phase materials and must
+satisfy it. The test executor role is not an LLM at all:
+``conductor.verify`` runs the suite neutrally with the designer's artifact
+as a **sealed overlay** (``sealed_from=tests``): the designer's test files
+are overlaid over the programmer's candidate at verify time, so the
+programmer *cannot* weaken or skip them — an edit to a sealed path is
+discarded and surfaced as ``sealed_overridden`` tamper evidence, and the
+programmer needn't even copy the tests into its tree. Each failure loops
+back to the programmer as a constructed review.
 
     python examples/papers/agentcoder.py ["<task>"]   # default: implement quicksort with pytest
 """
@@ -54,18 +59,27 @@ async def main(task: str) -> None:
         )
         await c.freeze()
 
-        # The programmer takes on the independent test suite as materials.
+        # The programmer sees the independent test suite as materials. It
+        # may copy the tests locally to iterate, but the copy carries no
+        # authority: verification below overlays the designer's originals.
         candidate = await programmer.work(
-            "Apply the granted teammate artifact — an independently designed "
-            "test suite for your task — into your worktree alongside your "
-            "implementation. Do not weaken or delete tests; adjust your "
-            "implementation until it honestly satisfies them.",
+            "The granted teammate artifact is an independently designed test "
+            "suite for your task. Make your implementation honestly satisfy "
+            "it — you may copy the tests into your worktree to run them "
+            "locally, but the neutral verifier always uses the designer's "
+            "originals, so editing them cannot help you.",
             materials=[tests],
         )
 
-        # Test executor loop: neutral runs, failures loop back as reviews.
+        # Test executor loop: neutral runs against the SEALED designer
+        # tests, failures loop back as reviews.
         for iteration in range(1, MAX_ITERATIONS + 1):
-            verification = await c.verify(candidate, VERIFY)
+            verification = await c.verify(candidate, VERIFY, sealed_from=tests)
+            if verification.sealed_overridden:
+                print(
+                    "note: candidate edits to sealed test paths were "
+                    f"discarded: {', '.join(verification.sealed_overridden)}"
+                )
             if verification.applies_cleanly and verification.tests_passed:
                 print(f"iteration {iteration}: test executor is green")
                 break
@@ -81,8 +95,9 @@ async def main(task: str) -> None:
                     round=candidate.round,
                     body=(
                         "Verdict: REVISE\n\nThe independently designed test "
-                        f"suite failed in a neutral worktree:\n{evidence}\n\n"
-                        "Fix the implementation; do not touch the tests."
+                        "suite (sealed — your copy of it carries no authority) "
+                        f"failed in a neutral worktree:\n{evidence}\n\n"
+                        "Fix the implementation; editing tests cannot help."
                     ),
                     referenced_artifacts=(candidate.id,),
                 ),

@@ -171,7 +171,23 @@ class Verification:
     isolation: str
     capture_id: str | None
     failure: str | None
+    #: sealed-overlay mode (non-None = sealed): the submission id whose
+    #: base..commit diff was overlaid over the candidate before the command
+    #: ran — the candidate's edits to those paths could not weaken the check
+    sealed_from: str | None
+    #: sealed mode only: tree OID of the sealing submission (the content
+    #: digest the verdict compares across candidates)
+    sealed_tree_oid: str | None
+    #: sealed mode only: the paths pinned by the overlay
+    sealed_paths: tuple[str, ...]
+    #: sealed paths where a candidate edit was discarded by the overlay —
+    #: tamper evidence, surfaced rather than silently dropped
+    sealed_overridden: tuple[str, ...]
     raw: Mapping[str, Any] = field(repr=False)
+
+    @property
+    def sealed(self) -> bool:
+        return self.sealed_from is not None
 
     @classmethod
     def from_raw(cls, raw: Mapping[str, Any]) -> "Verification":
@@ -186,6 +202,10 @@ class Verification:
             isolation=_s(raw, "isolation", "unknown"),
             capture_id=raw.get("capture_id"),
             failure=raw.get("failure"),
+            sealed_from=raw.get("sealed_from"),
+            sealed_tree_oid=raw.get("sealed_tree_oid"),
+            sealed_paths=tuple(raw.get("sealed_paths") or ()),
+            sealed_overridden=tuple(raw.get("sealed_overridden") or ()),
             raw=dict(raw),
         )
 

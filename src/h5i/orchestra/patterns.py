@@ -150,16 +150,22 @@ async def verify_and_judge(
     *,
     verify: Sequence[str] | None = None,
     isolation: str | None = None,
+    sealed_from: Artifact | str | None = None,
     judge: Policy | None = None,
 ) -> Verdict | None:
     """The shared pattern tail: neutrally verify each artifact — one at a
     time, verify worktrees share on-disk state and parallel creation is racy
     — then record a verdict. An explicit ``judge`` always wins; otherwise,
     when a verifier ran, the CLI's finalize rule (`tests_then_smallest_diff`)
-    applies; with neither, nothing is recorded and ``None`` comes back."""
+    applies; with neither, nothing is recorded and ``None`` comes back.
+    ``sealed_from`` seals part of every verified tree to one submission's
+    content (see ``Conductor.verify``) — typically an independent test set;
+    its owner must not be one of the candidates."""
     if verify is not None:
         for artifact in artifacts:
-            await c.verify(artifact, verify, isolation=isolation)
+            await c.verify(
+                artifact, verify, isolation=isolation, sealed_from=sealed_from
+            )
     if judge is not None:
         return await c.judge(judge)
     if verify is not None:
@@ -190,6 +196,7 @@ async def ensemble(
     rounds: int = 1,
     verify: Sequence[str] | None = None,
     isolation: str | None = None,
+    sealed_from: Artifact | str | None = None,
     judge: Policy | None = None,
     approve: Callable[[Review], bool] = approves,
 ) -> EnsembleOutcome:
@@ -227,7 +234,12 @@ async def ensemble(
 
     # 4-5. Neutral verification + verdict, the shared tail.
     verdict = await verify_and_judge(
-        c, list(latest.values()), verify=verify, isolation=isolation, judge=judge
+        c,
+        list(latest.values()),
+        verify=verify,
+        isolation=isolation,
+        sealed_from=sealed_from,
+        judge=judge,
     )
 
     return EnsembleOutcome(
@@ -255,6 +267,7 @@ async def integrate(
     *,
     verify: Sequence[str] | None = None,
     isolation: str | None = None,
+    sealed_from: Artifact | str | None = None,
 ) -> IntegrateOutcome:
     """The multi-implementer merge seat: seal the round, then one integrator
     fuses ``parts`` in its own env — granted their diffs as materials,
@@ -273,7 +286,9 @@ async def integrate(
     )
     verification = None
     if verify is not None:
-        verification = await c.verify(merged, verify, isolation=isolation)
+        verification = await c.verify(
+            merged, verify, isolation=isolation, sealed_from=sealed_from
+        )
     return IntegrateOutcome(merged=merged, verification=verification)
 
 
@@ -317,6 +332,7 @@ async def arena(
     *,
     verify: Sequence[str] | None = None,
     isolation: str | None = None,
+    sealed_from: Artifact | str | None = None,
     judge: Policy | None = None,
 ) -> ArenaOutcome:
     """Independent attempts, ranked: N agents try the same task with no
@@ -330,7 +346,12 @@ async def arena(
     )
     await c.freeze()
     verdict = await verify_and_judge(
-        c, artifacts, verify=verify, isolation=isolation, judge=judge
+        c,
+        artifacts,
+        verify=verify,
+        isolation=isolation,
+        sealed_from=sealed_from,
+        judge=judge,
     )
     rows = await c.compare()
     return ArenaOutcome(artifacts=artifacts, rows=rows, verdict=verdict)
