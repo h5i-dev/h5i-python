@@ -83,6 +83,8 @@ With the default `launcher="resident"`, `h5i` automatically starts the agent ses
   <img src="./assets/h5i-python-short.gif" width="95%">
 </p>
 
+If you use [herdr](https://herdr.dev) (an agent multiplexer for the terminal), pass `launcher="herdr"` instead: each agent seat comes up as a herdr pane beside your work, labeled `h5i-orch-<run>-<agent>`, with herdr's own per-agent status (working / blocked / done) in its sidebar.
+
 ## 3. Examples
 
 [examples/tutorial](./examples/tutorial/) provides basic multi-agent orchestration patterns:

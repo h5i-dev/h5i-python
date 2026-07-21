@@ -16,10 +16,13 @@ How a viewer is opened, in order of preference:
 2. already inside tmux (``$TMUX``): the agent's window is **linked** into
    your current session — no nested clients, switch to it like any other
    window (it is removed when the agent session ends);
-3. WSL with Windows Terminal on PATH: a new ``wt.exe`` tab per agent;
-4. a GUI terminal on ``$DISPLAY``/``$WAYLAND_DISPLAY`` (wezterm, kitty,
+3. inside herdr (``$HERDR_ENV`` with the ``herdr`` binary available): a
+   herdr pane per agent running ``tmux attach``, so seats land in herdr's
+   own sidebar (with its per-agent working/blocked/done status);
+4. WSL with Windows Terminal on PATH: a new ``wt.exe`` tab per agent;
+5. a GUI terminal on ``$DISPLAY``/``$WAYLAND_DISPLAY`` (wezterm, kitty,
    alacritty, gnome-terminal, konsole, foot, x-terminal-emulator, xterm);
-5. otherwise: a hint line on stderr with the exact attach command.
+6. otherwise: a hint line on stderr with the exact attach command.
 
 A broken viewer never fails the score — every opener error degrades to the
 stderr hint.
@@ -95,6 +98,8 @@ def resolve_opener(
         return Opener(name, "spawn", lambda s: template_argv(template, s))
     if env.get("TMUX"):
         return Opener("tmux link-window", "tmux-link")
+    if env.get("HERDR_ENV") == "1" and which("herdr"):
+        return Opener("herdr pane", "herdr")
     if which("wt.exe") and which("wsl.exe"):
         distro = env.get("WSL_DISTRO_NAME")
         return Opener("wt.exe", "spawn", lambda s: wt_argv(s, distro))
@@ -133,6 +138,9 @@ class SessionWatcher:
         self._open_now: set[str] = set()
         #: session name → pending-turn record (env id, started-at, warned yet).
         self._expected: dict[str, dict[str, Any]] = {}
+        # herdr-opener state (see _open_herdr_pane), built lazily.
+        self._herdr_client: Any = None
+        self._herdr_last_pane: str | None = None
 
     def _agent(self, session: str) -> str:
         return session[len(self._prefix):] or session
@@ -254,6 +262,13 @@ class SessionWatcher:
                     f"'{session}' in your current tmux session"
                 )
                 return
+            if opener.kind == "herdr":
+                pane_id = await self._open_herdr_pane(session)
+                self._echo(
+                    f"[h5i] agent '{agent}' session up — opened in herdr "
+                    f"pane {pane_id} (or: tmux attach -t {session})"
+                )
+                return
         except Exception as e:  # a broken viewer must not fail the score
             self._echo(
                 f"[h5i] agent '{agent}' session up, but its viewer failed ({e}) — "
@@ -281,6 +296,27 @@ class SessionWatcher:
         done, _ = await asyncio.wait({waiter}, timeout=2.0)
         if waiter in done and waiter.result() != 0:
             raise RuntimeError(f"viewer command exited with status {waiter.result()}")
+
+    async def _open_herdr_pane(self, session: str) -> str:
+        """A herdr pane running ``tmux attach`` on the session: the first
+        viewer splits right of this pane, later ones grow a column down."""
+        from ._herdr import HerdrClient, resolve_herdr_bin
+
+        if self._herdr_client is None:
+            self._herdr_client = HerdrClient(resolve_herdr_bin())
+        anchor, direction = (
+            (self._herdr_last_pane, "down")
+            if self._herdr_last_pane
+            else (os.environ.get("HERDR_PANE_ID"), "right")
+        )
+        pane = await self._herdr_client.split(pane=anchor, direction=direction)
+        pane_id: str = pane["pane_id"]
+        await self._herdr_client.rename(pane_id, session)
+        await self._herdr_client.run(
+            pane_id, f"tmux attach-session -t {session}"
+        )
+        self._herdr_last_pane = pane_id
+        return pane_id
 
     async def _link_window(self, session: str) -> None:
         proc = await asyncio.create_subprocess_exec(

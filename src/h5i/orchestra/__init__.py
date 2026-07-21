@@ -32,6 +32,7 @@ lives in the ``h5i`` binary.
 
 from . import patterns, policy
 from ._conductor import PROTOCOL_VERSION, Agent, Conductor, Scope
+from ._herdr import HerdrLauncher
 from ._errors import (
     AskParseError,
     BridgeClosedError,
@@ -60,6 +61,7 @@ __all__ = [
     "Conductor",
     "Agent",
     "Scope",
+    "HerdrLauncher",
     "PROTOCOL_VERSION",
     # data
     "Artifact",
