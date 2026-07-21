@@ -17,7 +17,7 @@ and need no clean worktree.
 
 | Score | Paper | The loop on h5i |
 |---|---|---|
-| [`self_refine.py`](self_refine.py) | Self-Refine ([arXiv:2303.17651](https://arxiv.org/abs/2303.17651)) | generate → critic seat (same model) reviews → revise, until approved. |
+| [`self_refine.py`](self_refine.py) | Self-Refine ([arXiv:2303.17651](https://arxiv.org/abs/2303.17651)) | one seat: generate → `reflect` (self-feedback) → revise, until its own critique approves. |
 | [`reflexion.py`](reflexion.py) | Reflexion ([arXiv:2303.11366](https://arxiv.org/abs/2303.11366)) | `verify` as the evaluator; verbal reflections accumulate in an episodic buffer delivered as the revise review. |
 | [`critic.py`](critic.py) | CRITIC ([arXiv:2305.11738](https://arxiv.org/abs/2305.11738)) | a toolbox of `verify` commands grounds each critique; correct → re-verify. |
 | [`self_debugging.py`](self_debugging.py) | Self-Debug ([arXiv:2304.05128](https://arxiv.org/abs/2304.05128)) | rubber-duck: explain your own code line by line before revising against the failure. |
@@ -98,7 +98,7 @@ and need no clean worktree.
 The scores share scaffolding and build on each other:
 
 1. `self_refine` → `reflexion` → `critic` — one worker, three feedback sources
-   (a critic seat, its own reflections, external tools).
+   (its own `reflect` critique, verifier-informed reflections, external tools).
 2. `self_consistency` → `agent_forest` → `multiagent_debate` — from voting to
    debating, same parallel-`ask` skeleton.
 3. `chateval` and `mav_bon` — two ways to judge sealed candidates beyond
