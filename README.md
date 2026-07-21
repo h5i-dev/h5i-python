@@ -101,7 +101,7 @@ If you use [herdr](https://herdr.dev) (an agent multiplexer for the terminal), p
 
 | Paper | Example | Summary |
 |---|---|---|
-| [Self-Refine](https://arxiv.org/abs/2303.17651) | [self_refine.py](./examples/papers/self_refine.py) | Generate, self-critique, refine until the critic approves. |
+| [Self-Refine](https://arxiv.org/abs/2303.17651) | [self_refine.py](./examples/papers/self_refine.py) | One seat: generate, `reflect` (self-critique), refine until its own critique approves. |
 | [Reflexion](https://arxiv.org/abs/2303.11366) | [reflexion.py](./examples/papers/reflexion.py) | Verbal reflections on test failures accumulate as episodic memory across retries. |
 | [CRITIC](https://arxiv.org/abs/2305.11738) | [critic.py](./examples/papers/critic.py) | Critiques grounded in external tool runs drive each correction. |
 | [Self-Debug](https://arxiv.org/abs/2304.05128) | [self_debugging.py](./examples/papers/self_debugging.py) | Explain your own code line by line (rubber duck), then fix. |

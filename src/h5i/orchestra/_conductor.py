@@ -643,6 +643,31 @@ class Agent:
             last_value=value,
         )
 
+    async def reflect(self, artifact: Artifact) -> Review:
+        """Critique your OWN submission — the self-feedback turn (Self-Refine's
+        FEEDBACK step).
+
+        Recorded as a ``reflection_submitted`` event, deliberately distinct
+        from peer review: it never counts as review/quorum evidence, and it
+        creates no cross-agent influence edge, so a revision addressing it
+        stays stamped independent. The returned :class:`Review` has
+        ``reviewer == target == <agent>`` and composes with :meth:`revise`
+        unchanged (``review.approved`` uses the same APPROVE first-line
+        convention). Reflecting on a teammate's artifact fails closed — that
+        is a :meth:`review`.
+        """
+        raw = await self._conductor._turn_request(
+            "agent.reflect",
+            {
+                "agent": self.id,
+                "env_id": self.env_id,
+                "artifact": artifact.to_payload(),
+            },
+            self.id,
+            self.env_id,
+        )
+        return Review.from_raw(raw)
+
     async def review(self, artifact: Artifact) -> Review:
         """Review a teammate's artifact (scoped read grant → posted review)."""
         raw = await self._conductor._turn_request(

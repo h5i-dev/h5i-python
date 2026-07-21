@@ -387,7 +387,7 @@ class TurnContext:
     run_id: str
     agent_id: str
     env_id: str
-    kind: str  # "work" | "review" | "revise" | "ask"
+    kind: str  # "work" | "review" | "revise" | "ask" | "reflect"
     target: str | None
     instruction: str
     repo_workdir: str

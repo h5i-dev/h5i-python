@@ -6,6 +6,7 @@ from h5i.orchestra import (
     Artifact,
     AskParseError,
     ProtocolError,
+    Review,
     TurnContext,
     Verdict,
 )
@@ -95,6 +96,41 @@ async def test_work_round_trip_preserves_unknown_fields():
 
         with pytest.raises(TypeError, match="argv sequence"):
             await c.verify(artifact, "cargo test")
+    finally:
+        await c.close()
+
+
+async def test_reflect_returns_self_review_that_composes_with_revise():
+    mock = MockOrchestra()
+    mock.on("agent.hire", lambda p: {"agent_id": p["name"], "env_id": f"env/{p['name']}/x"})
+    mock.on("agent.work", lambda p: artifact_raw(p["agent"]))
+    reflections = iter(["Needs edge-case tests.", "APPROVE — ready."])
+    mock.on("agent.reflect", lambda p: {
+        "reviewer": p["agent"], "target": p["agent"], "round": 1,
+        "body": next(reflections), "referenced_artifacts": [p["artifact"]["id"]],
+    })
+    mock.on("agent.revise", lambda p: artifact_raw(p["agent"], id_="sha:2"))
+    c = await launch_conductor(mock)
+    try:
+        author = await c.hire("author", runtime="claude")
+        artifact = await author.work("implement quicksort")
+
+        feedback = await author.reflect(artifact)
+        (reflect,) = mock.calls_to("agent.reflect")
+        assert reflect["agent"] == "author"
+        assert reflect["env_id"] == "env/author/x"
+        assert reflect["artifact"]["id"] == artifact.id
+        assert isinstance(feedback, Review)
+        assert feedback.reviewer == feedback.target == "author"
+        assert not feedback.approved
+
+        # The self-review composes with revise unchanged.
+        revised = await author.revise(artifact, feedback)
+        (revise,) = mock.calls_to("agent.revise")
+        assert revise["review"]["reviewer"] == "author"
+        assert revised.id == "sha:2"
+
+        assert (await author.reflect(revised)).approved
     finally:
         await c.close()
 
