@@ -57,6 +57,7 @@ python examples/tutorial/review_escalation.py "fix the flaky msg_integration tes
 python examples/tutorial/pipeline_score.py
 python examples/tutorial/judge_panel_score.py
 python examples/tutorial/debate_then_build.py
+python examples/tutorial/quorum_ensemble.py
 python examples/tutorial/tournament.py
 python examples/tutorial/custom_control_flow.py   # uses the default "attach" launcher:
                                          # park resident sessions yourself first
@@ -90,6 +91,7 @@ in an `apply` pause at a durable human gate: the question is delivered over
 | [`pipeline_score.py`](tutorial/pipeline_score.py) | `pipeline` | Assembly line: architect → implementer → hardener, each stage fed the last stage's artifact. |
 | [`judge_panel_score.py`](tutorial/judge_panel_score.py) | `judge_panel` | Judgment beyond tests: LLM judges score sealed candidates against a rubric, citing recorded evidence. |
 | [`debate_then_build.py`](tutorial/debate_then_build.py) | `debate` | Decide before building: argue a design question, then let the conclusion steer real work turns. |
+| [`quorum_ensemble.py`](tutorial/quorum_ensemble.py) | custom ensemble | Majority-quorum review: revise only when a strict majority of reviewers reject. |
 
 ## Composed control flow (the define-by-run payoff)
 
