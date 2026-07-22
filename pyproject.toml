@@ -27,7 +27,9 @@ classifiers = [
 dependencies = []
 
 [project.urls]
-Homepage = "https://github.com/Koukyosyumei/h5i"
+Homepage = "https://github.com/h5i-dev/h5i-python"
+Repository = "https://github.com/h5i-dev/h5i-python"
+Issues = "https://github.com/h5i-dev/h5i-python/issues"
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.6"]
