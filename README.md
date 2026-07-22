@@ -46,6 +46,8 @@ pip install h5i-orchestra
 Create `ensemble.py` inside the Git repository the agents should modify. This workflow let Claude and Codex independently implement the same task, review and improve each other’s work, and then select the better result.
 
 ```python
+import asyncio
+
 from h5i.orchestra import Conductor
 
 async def main(task):
@@ -91,7 +93,9 @@ If you use [herdr](https://herdr.dev) (an agent multiplexer for the terminal), p
 
 - [arena_score.py](./examples/tutorial/arena_score.py): independent arena ranking;
 - [ensemble_score.py](./examples/tutorial/ensemble_score.py): mutual-review ensembles;
-- [debate_then_build.py](./examples/tutorial/debate_then_build.py): architect-to-implementer pipelines;
+- [pipeline_score.py](./examples/tutorial/pipeline_score.py): architect-to-implementer pipelines;
+- [debate_then_build.py](./examples/tutorial/debate_then_build.py): debate a design question before building;
+- [quorum_ensemble.py](./examples/tutorial/quorum_ensemble.py): majority-quorum ensembles;
 - [review_escalation.py](./examples/tutorial/review_escalation.py): conditional review escalation;
 - [judge_panel_score.py](./examples/tutorial/judge_panel_score.py): LLM judge panels;
 - [tournament.py](./examples/tutorial/tournament.py): tournament brackets; and
